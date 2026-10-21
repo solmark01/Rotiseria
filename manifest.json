@@ -1,6 +1,6 @@
 {
-  "name": "El Buen Gusto",
-  "short_name": "El Buen Gusto",
+  "name": "Rotiseria",
+  "short_name": "Rotiseria",
   "description": "Sistema de gestión de viandas",
   "start_url": "./index.html",
   "display": "standalone",
