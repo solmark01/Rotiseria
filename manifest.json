@@ -1,0 +1,25 @@
+{
+  "name": "El Buen Gusto",
+  "short_name": "El Buen Gusto",
+  "description": "Sistema de gestión de viandas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdf8f3",
+  "theme_color": "#c0713a",
+  "orientation": "portrait",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
