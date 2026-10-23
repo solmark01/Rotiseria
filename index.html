@@ -4,7 +4,7 @@
 <title>El Buen Gusto</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="El Buen Gusto">
+<meta name="apple-mobile-web-app-title" content="Roti SM">
 <meta name="theme-color" content="#c0713a">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
@@ -58,8 +58,9 @@ nav button b{display:block;font-size:19px}nav .on{color:var(--ac);font-weight:70
 .add-plato{width:100%;padding:9px;border:1px dashed var(--bd);border-radius:10px;background:transparent;color:var(--ac);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px}
 .info{background:var(--acl);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ac);font-weight:600;line-height:1.4;margin-bottom:10px}
 .info.am{background:var(--aml);color:var(--am)}.info.gr{background:var(--grl);color:var(--gr)}.info.rd{background:#fce;color:var(--rd)}
-.fab{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+62px);right:14px;width:50px;height:50px;border-radius:50%;background:var(--ac);border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(192,113,58,.4);z-index:9;font-family:inherit}
-.fab:active{transform:scale(.93)}
+.fab{position:sticky;top:calc(env(safe-area-inset-top,0px));z-index:8;width:100%;display:flex;justify-content:flex-end;pointer-events:none;margin-bottom:-4px}
+.fab button{pointer-events:all;background:var(--ac);border:none;color:#fff;font-size:22px;font-weight:700;cursor:pointer;border-radius:12px;padding:8px 18px;box-shadow:0 2px 8px rgba(192,113,58,.35);font-family:inherit}
+.fab button:active{opacity:.85}
 .toast-el{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);left:50%;transform:translateX(-50%) translateY(16px);background:#1e1a16;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .25s;z-index:50;pointer-events:none;white-space:nowrap}
 .toast-el.show{opacity:1;transform:translateX(-50%) translateY(0)}
 canvas{border-radius:12px;max-width:100%;display:none}
@@ -89,8 +90,8 @@ const TRIAL=7;
 let lic=null,lockMsg="";
 const dys=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
 const addD=(a,n)=>{const d=new Date(a+"T12:00:00");d.setDate(d.getDate()+n);return iso(d)};
-const licSave=()=>{try{localStorage.setItem("bgusto_lic",JSON.stringify(lic))}catch(e){}};
-function licInit(){const t=today();try{lic=JSON.parse(localStorage.getItem("bgusto_lic"))}catch(e){lic=null}
+const licSave=()=>{try{localStorage.setItem("rotism_lic",JSON.stringify(lic))}catch(e){}};
+function licInit(){const t=today();try{lic=JSON.parse(localStorage.getItem("rotism_lic"))}catch(e){lic=null}
  if(!lic||!lic.id){const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r=crypto.getRandomValues(new Uint8Array(6));lic={id:[...r].map(x=>A[x%32]).join(""),inst:t,until:null,seen:t};licSave()}}
 const validUntil=()=>{const tr=addD(lic.inst,TRIAL);return lic.until&&lic.until>tr?lic.until:tr};
 const left=()=>dys(today(),validUntil());
@@ -111,11 +112,11 @@ const licTxt=()=>left()<0?"vencida":left()===0?"vence hoy":"quedan "+left()+" d�
 const banner0=()=>PUB&&left()>=0&&left()<=5?`<div class="c info am">⏳ Tu suscripción vence ${left()===0?"hoy":"en "+left()+" día"+(left()===1?"":"s")}. Pedí tu clave para renovar.</div>`:"";
 
 /* ── DB ────────────────────────────────────────────────── */
-let db={clientes:[],platos:[],ordenes:[],pagos:[],canjes:[],premios:[
+let db={clientes:[],platos:[],ordenes:[],pagos:[],canjes:[],empleados:[],premios:[
   {id:"p1",nombre:"Vianda gratis",puntos:100,desc:"Del menú del día"},
   {id:"p2",nombre:"10% de descuento",puntos:50,desc:"En tu próxima compra"}
 ],cfgPuntos:{puntoPorPeso:1},contactosImportados:false};
-const SK="bgusto_v5";
+const SK="rotism_v1";
 function save(){try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){toast("⚠ No se pudo guardar")}}
 function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d)db=Object.assign(db,d)}catch(e){}
  if(!db.pagos)db.pagos=[];if(!db.canjes)db.canjes=[];
@@ -127,11 +128,11 @@ function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d)db=Object.
 const AGENDA=[{"nombre": "Cristina Rodriguez", "tel": "05493442489960"}, {"nombre": "Ale López Garcia", "tel": "3442455939"}, {"nombre": "Sonia Nfm", "tel": "+5493442540595"}, {"nombre": "Franco Sinatra", "tel": "3442545764"}, {"nombre": "Club Regatas", "tel": "+5493442427962"}, {"nombre": "Club Rocamora", "tel": "+5493442451455"}, {"nombre": "Roxana Hija De Ivan", "tel": "+5493442681560"}, {"nombre": "Pereira Daiana", "tel": "+5493442521063"}, {"nombre": "Mariela Merkel", "tel": "+5493442560423"}, {"nombre": "Mr Skbio", "tel": "+5493442519577"}, {"nombre": "Nico Lizzi Ferrujem", "tel": "+5493446641339"}, {"nombre": "Facu Amigo Elu", "tel": "+5493442600172"}, {"nombre": "Fkecha Cdu Por Whatssap", "tel": "+5491156014891"}, {"nombre": "Patri Yop", "tel": "+5493442511051"}, {"nombre": "Vero Zamudio Clienta Nueva", "tel": "+5493442402476"}, {"nombre": "Willy Quintero", "tel": "+5493442577705"}, {"nombre": "sergio De Jona", "tel": "+5493442561673"}, {"nombre": "Diego Pepe Bufalo", "tel": "+5493442471601"}, {"nombre": "Amiga Poqui", "tel": "+5493442485032"}, {"nombre": "Luis Ramirez", "tel": "+5493442672270"}, {"nombre": "pao", "tel": "+5493442486392"}, {"nombre": "Juanchy Chuchi Sobrino", "tel": "+5493442407794"}, {"nombre": "Ramon Cieri", "tel": "+5493442627451"}, {"nombre": "Gricrlda Directora", "tel": "+5493442502502"}, {"nombre": "Chechu", "tel": "+5493442541909"}, {"nombre": "Sandra Carne San Justo", "tel": "+5493442660102"}, {"nombre": "Clau García", "tel": "+5493442508186"}, {"nombre": "Cele Migliaccio", "tel": "+5493442567020"}, {"nombre": "Estefania Praedo Empleada", "tel": "+5493442622847"}, {"nombre": "Eve Ramounat (Cliente M", "tel": "+5493445404026"}, {"nombre": "•Maruu~ Cte Nuevo", "tel": "+5491164199200"}, {"nombre": "Charly Van Bosch Dj", "tel": "+5493442404148"}, {"nombre": "Anto Gerfo", "tel": "+5493442489316"}, {"nombre": "Ale Hermano", "tel": "3442513859"}, {"nombre": "Remis claudia", "tel": "+5493442454598"}, {"nombre": "Leal Facundo Profe Fcg", "tel": "+5493442625219"}, {"nombre": "Meli Sultan", "tel": "+5493442418109"}, {"nombre": "Ivana Hija De Ivan", "tel": "+5493442489013"}, {"nombre": "Ruth Barraza", "tel": "+5493442473111"}, {"nombre": "Alexis Yamil Spiropulo", "tel": "+5493442501274"}, {"nombre": "Verónica Giqueaux Prod", "tel": "+5493442500444"}, {"nombre": "Fernando De Cele", "tel": "+5493442475476"}, {"nombre": "Silvio Chivel", "tel": "+5493442498131"}, {"nombre": "Gise Amiga De Kari", "tel": "+5493442462769"}, {"nombre": "Eze Del Museo Fcg", "tel": "+5493442565080"}, {"nombre": "Euge Amiga", "tel": "+5493442546505"}, {"nombre": "Agmer Sección Uruguay", "tel": "3442680318"}, {"nombre": "Dto Peatonal", "tel": "+5493442541811"}, {"nombre": "Donato Nvo Cliente ( To", "tel": "+5493442566718"}, {"nombre": "Ag (CTE Nuevo)", "tel": "+5493644809557"}, {"nombre": "Naty Parodi", "tel": "+5493442418859"}, {"nombre": "Remis Cristina", "tel": "+5493442662334"}, {"nombre": "Noriega", "tel": "+5493442416974"}, {"nombre": "Estética Dermasil.Silv", "tel": "+5493442671390"}, {"nombre": "Luciano Sotto Cte Nvo", "tel": "+5493442624573"}, {"nombre": "Vero Ocampo 💜 Esc 88", "tel": "+5493442528706"}, {"nombre": "Juampi Gavino Nuevo Para Llamadas", "tel": "+5493442508346"}, {"nombre": "Sogi Sobrina", "tel": "+5493442653584"}, {"nombre": "Milva Praderio Prof Fcg", "tel": "+5493442546221"}, {"nombre": "Amiga elu", "tel": "3442609935"}, {"nombre": "Brian De Folmer Cliente", "tel": "+5493442540492"}, {"nombre": "Fiorotto Hugo", "tel": "+5493442624681"}, {"nombre": "Marcos Mensajero Tomi", "tel": "+5493442556530"}, {"nombre": "Juan Retamar MITRE 114", "tel": "+5493442654357"}, {"nombre": "Pitu Monsalvo", "tel": "+5493442674240"}, {"nombre": "Ludmila Pj Candidata Nichajew", "tel": "+5493442653210"}, {"nombre": "Lu Cta Nueva", "tel": "+5493442642119"}, {"nombre": "Mariela", "tel": "+5493442525778"}, {"nombre": "Pontelli Raul", "tel": "+5493442522868"}, {"nombre": "San Sobrino De Cele", "tel": "+5493442581505"}, {"nombre": "Alquiler Ivana", "tel": "3442401228"}, {"nombre": "Inmo Galotto", "tel": "3442654508"}, {"nombre": "Negri Grieve Dj", "tel": "+5493442674828"}, {"nombre": "Carla Amiga De Chuchi", "tel": "+5493442566865"}, {"nombre": "Jime Serrano Esc 88", "tel": "+5493442646433"}, {"nombre": "Tomas Inchausty Mitre114", "tel": "+5493446576412"}, {"nombre": "Pintureria", "tel": "+5493442646194"}, {"nombre": "Iani Dening❣️ Zumba", "tel": "+5493442646665"}, {"nombre": "Carlitos Amigo Flory", "tel": "+5493442527227"}, {"nombre": "Franquito Sina", "tel": "+5493442682128"}, {"nombre": "Libreria del Colegio", "tel": "+5493442573300"}, {"nombre": "Sin Nombre", "tel": "+5493442478039"}, {"nombre": "Norma? Compañera Traba", "tel": "+543442550488"}, {"nombre": "Chuchi", "tel": "+5493442601770"}, {"nombre": "Angel Hernandez Chiqui", "tel": "+5493442501436"}, {"nombre": "Copul", "tel": "+5493442518189"}, {"nombre": "Renu Clienta Nueva", "tel": "+5493442644001"}, {"nombre": "Mensajería Nueva", "tel": "3442503842"}, {"nombre": "Taty Salvarezza", "tel": "+5493442568395"}, {"nombre": "Melina  Machado (Cliente)", "tel": "+5493442500334"}, {"nombre": "Maga Nuevo", "tel": "+5493442641306"}, {"nombre": "Kloster Lucia", "tel": "+5493442589841"}, {"nombre": "Agrelo Maria Elena ( Empleada De Cris)", "tel": "+5493442678390"}, {"nombre": "Torta Fritas Adriana Golf Croket Tortas Fritas", "tel": "+5493445623076"}, {"nombre": "Johann Amigo Facu Nvo", "tel": "+5493442640660"}, {"nombre": "Miguel Suegro Cristian", "tel": "+5493436221085"}, {"nombre": "Elian", "tel": "3442455207"}, {"nombre": "Psico Adriana MONTENEGRO", "tel": "+5491138160006"}, {"nombre": "Ratto Chino Dj", "tel": "+5493442684598"}, {"nombre": "Andrea Prima Natalia", "tel": "+5493442453658"}, {"nombre": "NOE Nueva Cliente", "tel": "+5493442584310"}, {"nombre": "Palito", "tel": "3442521792"}, {"nombre": "Luis", "tel": "+5493442462209"}, {"nombre": "Caro", "tel": "+5493442506606"}, {"nombre": "Kinesio Ceke", "tel": "+5493442556225"}, {"nombre": "Valo", "tel": "+5493442405946"}, {"nombre": "Poqui. Adriana", "tel": "+5493442604600"}, {"nombre": "Stefania Martinez", "tel": "+5493442548465"}, {"nombre": "Pao Termas", "tel": "+5493442669474"}, {"nombre": "Ucasal", "tel": "+5493442489173"}, {"nombre": "Karina Nuevo Celu", "tel": "+5493442644831"}, {"nombre": "Augusto Amigo Nato", "tel": "+5493442518655"}, {"nombre": "Eliana López", "tel": "+5493442400523"}, {"nombre": "Dora Ferreccio ( Todav", "tel": "+5493442471528"}, {"nombre": "Leonardo Flores", "tel": "+5493442514722"}, {"nombre": "Jesica Cañete", "tel": "+5493442682165"}, {"nombre": "Tortafritas Quiroga Buseca LUCY", "tel": "+5493442513529"}, {"nombre": "Lucre Clienta", "tel": "+5493442506227"}, {"nombre": "Mateo Bassini MITRE 114", "tel": "+5493442573210"}, {"nombre": "Círculo Catolico", "tel": "+5493442514462"}, {"nombre": "Abraham", "tel": "3442645435"}, {"nombre": "Tomi El Buen Gusto", "tel": "+5493442527379"}, {"nombre": "Ian Nvo Cliente ( Todav", "tel": "+5493442507900"}, {"nombre": "Silvia Banchik Albergue Por Violencia De Genero", "tel": "+5493442461294"}, {"nombre": "⠀Luis Farmacia suprem", "tel": "+5493442648347"}, {"nombre": "Jose Bonnot", "tel": "+5493442505627"}, {"nombre": "Esteban Pontelli", "tel": "+5493442500730"}, {"nombre": "Estelita De Rochi", "tel": "+5493442649848"}, {"nombre": "Cristina Rodriguez Facultad", "tel": "+5493442489960"}, {"nombre": "Laura Evangelina Navas", "tel": "+5493442462042"}, {"nombre": "Soraya De Galarza 862", "tel": "+5493442310031"}, {"nombre": "Ivancho Nuevo", "tel": "+5493442653269"}, {"nombre": "Laura Correa. Cta Nueva", "tel": "+5493442483369"}, {"nombre": "Virginia Cliente Nueva Conoce A Tomi", "tel": "3442501205"}, {"nombre": "Milagros Fundación Mic", "tel": "+5493442666679"}, {"nombre": "Valen Cta Calle Victorica", "tel": "+5493442464891"}, {"nombre": "Popi Termas", "tel": "+5493442334242"}, {"nombre": "Miriam Beto", "tel": "+5491157071642"}, {"nombre": "Andrea Msna Dr Joaquin", "tel": "+5493462529240"}, {"nombre": "Vita 2 Ternas", "tel": "+5493442607860"}, {"nombre": "Agos Clienta Nueva", "tel": "+5493442487134"}, {"nombre": "Edith CTE. Nueva", "tel": "+5493446313265"}, {"nombre": "Elvy Cta Nueva", "tel": "+5493442571683"}, {"nombre": "Miguel Abercon", "tel": "+5493442488847"}, {"nombre": "Cele Goñi", "tel": "+5493442537188"}, {"nombre": "Grecia ( Todavía No Co", "tel": "+5493442660959"}, {"nombre": "Martina Boxler", "tel": "+5493442523133"}, {"nombre": "Mica Gor", "tel": "+5491157476271"}, {"nombre": "Gusta", "tel": "+5493442408380"}, {"nombre": "Girgy", "tel": "+5493442642278"}, {"nombre": "Hermana Danilo", "tel": "+5493442550547"}, {"nombre": "Silvina ( Supremo Entrerriano - Farmacia", "tel": "+5493442620175"}, {"nombre": "Stela Fliry", "tel": "+5493442470850"}, {"nombre": "Jesica Vera", "tel": "+5493442403959"}, {"nombre": "Celeste Ferreyra Pelu", "tel": "+5493442579482"}, {"nombre": "Gisel Chuchi", "tel": "+5493442306300"}, {"nombre": "Pelu Sultán", "tel": "+5493442520990"}, {"nombre": "Ramón Cieri Nuevo", "tel": "+5493442310513"}, {"nombre": "Rosana Binet Clienta Nueva", "tel": "+5493442649666"}, {"nombre": "Gabriela González", "tel": "+5493442647317"}, {"nombre": "Jorgelina Musicoterapista", "tel": "+5491156263893"}, {"nombre": "Eli Vecina", "tel": "3442621852"}, {"nombre": "Vale Gomez PJ", "tel": "+5493442456344"}, {"nombre": "Rodri Metalurgica ( Migue)", "tel": "+5493442653886"}, {"nombre": "Cristian Perez CTE. Nuevo", "tel": "+5493442537571"}, {"nombre": "Maru 🌕", "tel": "+5493442508860"}, {"nombre": "Anto Cergneu", "tel": "+5493442561520"}, {"nombre": "Ari Fernandez. cari", "tel": "+5493442530267"}, {"nombre": "Majo Ribole Amiga Chuchi", "tel": "+5493442401318"}, {"nombre": "Sultan Isabel", "tel": "+5493442461456"}, {"nombre": "Ema Amigo Nato", "tel": "+5493442516230"}, {"nombre": "Raquela Scelzi Sra Nueva.", "tel": "+543442489692"}, {"nombre": "Enet Secretaria", "tel": "+5493442677599"}, {"nombre": "Andy Montefinale", "tel": "+5493442525303"}, {"nombre": "Carlos Ignacio Ratto", "tel": "+5493442544297"}, {"nombre": "Lula", "tel": "+5493413606458"}, {"nombre": "Mari Arce", "tel": "+5493484696946"}, {"nombre": "Fede Maestro De Ajedrez", "tel": "+5493442480875"}, {"nombre": "Sin Nombre.", "tel": "+5493442629651"}, {"nombre": "Beatriz Diaz", "tel": "+5493442418708"}, {"nombre": "Mariana Castro", "tel": "+5493442545415"}, {"nombre": "Franco Gavino", "tel": "+5493442312608"}, {"nombre": "Sheila Araujo❤", "tel": "+5493446636285"}, {"nombre": "Maria Eugenia Nueva Cliente", "tel": "+5493442407789"}, {"nombre": "Fer De Richi", "tel": "+5493442505072"}, {"nombre": "Migue Claro", "tel": "+5493446599436"}, {"nombre": "Blas Peluquero", "tel": "+5493442587124"}, {"nombre": "Maru ( Todavía No Comp", "tel": "+5493442570757"}, {"nombre": "Migue Nico", "tel": "+5493442501766"}, {"nombre": "Mirta Bourband", "tel": "+5493442455327"}, {"nombre": "Advance Coworking", "tel": "+5493442406032"}, {"nombre": "Alvarito 🚤🏝️", "tel": "+5493442501944"}, {"nombre": "Belu Turowiez", "tel": "+5493442453459"}, {"nombre": "Deliveri Voy", "tel": "+5493442485800"}, {"nombre": "Maga Perez", "tel": "+5493442678156"}, {"nombre": "Angeles Nuevo", "tel": "+5492966615820"}, {"nombre": "Alejandra Ami Nato", "tel": "+5493442303001"}, {"nombre": "Folmer Concepción del", "tel": "+5493442507188"}, {"nombre": "Ariana Ardaiz( Metalúr", "tel": "+5493442311005"}, {"nombre": "Tiziana Duarte", "tel": "+5493442404517"}, {"nombre": "Aldo Galarza Al Lado De Chita", "tel": "+5493435301760"}, {"nombre": "Vero💕💕💕", "tel": "+5493466510002"}, {"nombre": "Ali, La Clarita", "tel": "+5493513833321"}, {"nombre": "helados miviejo", "tel": "+5493442315551"}, {"nombre": "Fanni💚🧉", "tel": "+5493442679313"}, {"nombre": "Junior Cliente", "tel": "+5493442586029"}, {"nombre": "German", "tel": "+5493442463439"}, {"nombre": "Santi", "tel": "+5493442532452"}, {"nombre": "Antonella Fernandez", "tel": "+5493442560006"}, {"nombre": "Descartables Cdelu", "tel": "+5493442489185"}, {"nombre": "Sabrina", "tel": "+5493442533860"}, {"nombre": "Daniela Nomellini", "tel": "+5493442582624"}, {"nombre": "Migue", "tel": "+5493442620804"}, {"nombre": "Poppe", "tel": "+5493442653937"}, {"nombre": "Luis", "tel": "+5493442675303"}, {"nombre": "Agus~agustina Paniagua Cris Trabajo", "tel": "+5493454433099"}, {"nombre": "Joaquin Klug", "tel": "+5493442665863"}, {"nombre": "Miriam", "tel": "+5493442518666"}, {"nombre": "Florencia Salvini", "tel": "+5493442625376"}, {"nombre": "Amor", "tel": "+543442670220"}, {"nombre": "Cele.Carballo", "tel": "+5493442408311"}, {"nombre": "Andrea Gym", "tel": "3442405353"}, {"nombre": "Is Tv", "tel": "3442489105"}, {"nombre": "Italia Concepcion Delivery", "tel": "+5493442571992"}, {"nombre": "Nico La Clarita", "tel": "+5493512261901"}, {"nombre": "Nazaa", "tel": "+5493492634330"}, {"nombre": "Heladeria Italia Concepcion", "tel": "+5493442475566"}, {"nombre": "Josefina", "tel": "+5493442644358"}, {"nombre": "Luz", "tel": "+5493442402984"}, {"nombre": "Flor", "tel": "+5493442418831"}];
 
 /* ── STATE ─────────────────────────────────────────────── */
-let tab="ord",orFiltro="todos",descTipo="pct",entrega="mensajero",formaPago="efectivo";
+let tab="ord",orFiltro="todos",descTipo="pct",entrega="mensajero",formaPago="efectivo",filtroEtiq="";
 let selYear=new Date().getFullYear(),selMonth=new Date().getMonth(),infPeriodo="dia";
 let busqCli="",soloDeudores=false,busqPla="",platoRowCount=0;
 let compId=null,canjeCliId=null;
-const tabs=[["ord","🍽️","Ordenes"],["cli","👥","Clientes"],["pla","🥘","Platos"],["inf","📊","Informe"],["pts","⭐","Puntos"],["dat","💾","Datos"]];
+const tabs=[["ord","🍽️","Ordenes"],["cli","👥","Clientes"],["pla","🥘","Platos"],["inf","📊","Informe"],["pts","⭐","Puntos"],["emp","👨‍🍳","Equipo"],["dat","⚙️","Config"]];
 
 /* ── HELPERS ───────────────────────────────────────────── */
 const getWeek=()=>{const n=new Date(),d=n.getDay()||7,m=new Date(n);m.setDate(n.getDate()-d+1);const s=new Date(m);s.setDate(m.getDate()+6);return{from:m.toISOString().slice(0,10),to:s.toISOString().slice(0,10)}};
@@ -148,7 +149,18 @@ const getSaldo=cliId=>{
 };
 
 /* ── NAV / RENDER ──────────────────────────────────────── */
-function getFab(){let f=document.querySelector(".fab");if(!f){f=document.createElement("button");f.className="fab";f.textContent="+";document.body.appendChild(f);}return f;}
+function getFab(){
+  let f=document.querySelector(".fab");
+  if(!f){
+    f=document.createElement("div");f.className="fab";
+    const btn=document.createElement("button");btn.textContent="+ Nuevo";
+    f.appendChild(btn);
+    // Insert at top of #app
+    const app=document.getElementById("app");
+    app.insertBefore(f,app.firstChild);
+  }
+  return f.querySelector("button");
+}
 function render(){
   licTick();
   if(PUB&&isLocked()){
@@ -162,7 +174,10 @@ function render(){
     AGENDA.forEach(ct=>{const t=ct.tel.replace(/[\s\-]/g,"");if(ex[t])return;db.clientes.push({id:uid(),nombre:ct.nombre,tel:ct.tel,dir:"",puntos:0,ts:Date.now()});ex[t]=true});
     db.contactosImportados=true;save();
   }
-  const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,dat:renderDat};
+  const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,emp:renderEmp,dat:renderDat};
+  const hideFabTabs=["inf","pts","emp","dat"];
+  const fabEl=document.querySelector(".fab");
+  if(fabEl)fabEl.style.display=hideFabTabs.includes(tab)?"none":"flex";
   (pages[tab]||renderOrd)();
 }
 
@@ -174,7 +189,7 @@ function renderOrd(){
   const np=hoy.filter(o=>o.estado==="pendiente").length;
   const nl=hoy.filter(o=>o.estado==="listo").length;
   const nc=hoy.filter(o=>o.estado==="cancelado").length;
-  const brand=db.cfg?.brand||{nombre:"El Buen Gusto",emoji:"🍽️"};
+  const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
   let html=`<div class="row" style="margin-bottom:4px"><h1 style="margin:0">${brand.emoji} ${esc(brand.nombre)}</h1><span class="mu">${new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"})}</span></div>`;
   html+=banner0();
   html+=`<button class="b s" style="margin-bottom:10px" onclick="abrirPDFDia()">📋 Orden del día para el chef</button>`;
@@ -223,7 +238,7 @@ function cardOrd(o){
 }
 function waOrdenCliente(id){
   const o=db.ordenes.find(o=>o.id===id);if(!o)return;
-  const brand=db.cfg?.brand||{nombre:"El Buen Gusto",emoji:"🍽️"};
+  const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
   const tot=o.totalPrecio||o.precio*o.cantidad||0;
   const nl="\n";
@@ -243,7 +258,7 @@ function waOrdenCliente(id){
 }
 function waOrdenChef(id){
   const o=db.ordenes.find(o=>o.id===id);if(!o)return;
-  const brand=db.cfg?.brand||{nombre:"El Buen Gusto",emoji:"🍽️"};
+  const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
   const tot=o.totalPrecio||o.precio*o.cantidad||0;
   const nl2="\n";
@@ -447,6 +462,7 @@ function renderCli(){
   const _f=getFab();_f.onclick=()=>newCliForm();_f.style.display="flex";
   let lista=db.clientes.filter(c=>{
     if(soloDeudores&&getSaldo(c.id).saldo<=0)return false;
+    if(filtroEtiq&&!(c.etiquetas||[]).includes(filtroEtiq))return false;
     if(!busqCli)return true;
     const q=nz(busqCli);return nz(c.nombre).includes(q)||(c.tel&&c.tel.includes(q))||(c.dir&&nz(c.dir).includes(q));
   }).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -454,6 +470,12 @@ function renderCli(){
   let html=`<h1>👥 Clientes</h1>`;
   html+=`<div style="display:flex;gap:8px;margin-bottom:10px">`;
   html+=`<input style="margin:0;flex:1" placeholder="Buscar por nombre, tel o dirección..." value="${esc(busqCli)}" oninput="busqCli=this.value;renderCli()" onkeydown="if(event.key==='Enter')renderCli()">`;
+  html+=`</div>`;
+  // Collect all unique etiquetas
+  const allEtiq=[...new Set(db.clientes.flatMap(c=>c.etiquetas||[]))].sort();
+  html+=`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">`;
+  html+=`<button onclick="filtroEtiq='';renderCli()" style="padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${filtroEtiq===''?"var(--ac)":"var(--card)"};color:${filtroEtiq===''?"#fff":"var(--mu)"};cursor:pointer">Todos</button>`;
+  allEtiq.forEach(e=>{html+=`<button onclick="filtroEtiq='${esc(e)}';renderCli()" style="padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${filtroEtiq===e?"var(--ac)":"var(--card)"};color:${filtroEtiq===e?"#fff":"var(--mu)"};cursor:pointer">${esc(e)}</button>`;});
   html+=`</div>`;
   html+=`<div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="soloDeudores=!soloDeudores;renderCli()" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid ${soloDeudores?"var(--rd)":"var(--bd)"};background:${soloDeudores?"#fce":"var(--card)"};color:${soloDeudores?"var(--rd)":"var(--mu)"};cursor:pointer">💸 Deudores${totalDeudores>0?" ("+totalDeudores+")":""}</button></div>`;
   html+=`<div class="mu" style="margin-bottom:8px">${db.clientes.length} clientes${busqCli?" · "+lista.length+" resultados":""}</div>`;
@@ -473,6 +495,9 @@ function newCliForm(id){
 <label>Nombre completo</label><input type="text" id="cNom" value="${esc(c?.nombre||"")}" placeholder="Ej: Ana García">
 <label>Teléfono</label><input type="tel" id="cTel" value="${esc(c?.tel||"")}" placeholder="Ej: 3442-123456">
 <label>Dirección</label><input type="text" id="cDir" value="${esc(c?.dir||"")}" placeholder="Ej: San Martín 456">
+<label>Etiquetas (separadas por coma)</label>
+<input type="text" id="cEtiq" value="${esc((c?.etiquetas||[]).join(', '))}" placeholder="Ej: Vegetariano, Sin sal, Sin TACC">
+<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;margin-bottom:8px" id="etiqPreview"></div>
 <button class="b" onclick="guardarCli('${c?.id||""}')">Guardar</button>`);
 }
 function guardarCli(id){
@@ -480,8 +505,10 @@ function guardarCli(id){
   const tel=document.getElementById("cTel")?.value.trim();
   const dir=document.getElementById("cDir")?.value.trim();
   if(!nombre){alert("Ingresá el nombre");return;}
-  if(id){const c=db.clientes.find(c=>c.id===id);if(c){c.nombre=nombre;c.tel=tel;c.dir=dir;}}
-  else db.clientes.push({id:uid(),nombre,tel,dir,puntos:0,ts:Date.now()});
+  const etiqRaw=document.getElementById("cEtiq")?.value||"";
+  const etiquetas=etiqRaw.split(",").map(e=>e.trim()).filter(e=>e.length>0);
+  if(id){const c=db.clientes.find(c=>c.id===id);if(c){c.nombre=nombre;c.tel=tel;c.dir=dir;c.etiquetas=etiquetas;}}
+  else db.clientes.push({id:uid(),nombre,tel,dir,etiquetas,puntos:0,ts:Date.now()});
   closeSh();rf();toast("Cliente guardado");
 }
 function editCli(id){newCliForm(id)}
@@ -659,7 +686,10 @@ function abrirPDFDia(){
   html+=`<div class="info gr" style="margin-bottom:10px">${hoy.length} órdenes · ${tv} viandas</div>`;
   hoy.forEach(o=>{const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];html+=`<div class="c" style="padding:10px 12px;margin-bottom:7px"><div style="font-size:14px;font-weight:700">${esc(o.clienteNombre)}</div><div class="mu">${items.map(it=>esc(it.platoNombre)+" x"+it.cantidad).join(" · ")}${o.notas?" · "+esc(o.notas):""}${o.entrega==="retiro"?" · Retira":"  · Mensajero"}</div><div style="color:var(--gr);font-weight:700">${money(o.totalPrecio||o.precio*o.cantidad||0)}</div></div>`;});
   html+=`<h2>Resumen</h2>`;Object.keys(pm).sort((a,b)=>pm[b]-pm[a]).forEach(k=>{html+=`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--bd)"><span>${esc(k)}</span><span class="chip ch-gr">x${pm[k]}</span></div>`;});
-  html+=`<div style="display:flex;gap:8px;margin-top:14px"><button class="b" onclick="genPDFDia()">📄 PDF</button><button class="b s" onclick="genImgDia()">📷 Imagen</button></div>`;
+  // Chef WA button
+  const chefs2=db.empleados?db.empleados.filter(e=>e.rol==="chef"):[];
+  const chefWA=chefs2.length===1?`<button class="b s" onclick="waOrdenDiaChef('${chefs2[0].tel}')">💬 WA Chef</button>`:(chefs2.length>1?`<button class="b s" onclick="elegirChefDia()">💬 WA Chef</button>`:"");
+  html+=`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="b" onclick="genPDFDia()">📄 PDF</button><button class="b s" onclick="genImgDia()">📷 Imagen</button>${chefWA}</div>`;
   sh(html);
 }
 
@@ -767,7 +797,7 @@ function genPDFOrden(id){
   y+=2;doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
   doc.setFontSize(11);doc.setFont("helvetica","bold");doc.setTextColor(100,80,60);doc.text("Total:",mg,y);doc.setTextColor(47,122,74);doc.setFontSize(14);doc.text(money(o.totalPrecio||o.precio*o.cantidad||0),W-mg,y,{align:"right"});y+=12;
   doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
-  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("El Buen Gusto",W/2,y,{align:"center"});
+  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("Roti SM",W/2,y,{align:"center"});
   doc.save("orden-chef-"+o.clienteNombre.replace(/\s+/g,"-").toLowerCase()+".pdf");toast("PDF generado");
 }
 
@@ -797,7 +827,7 @@ function genImgOrden(id){
   if(o.descMonto>0){ctx.fillStyle="#8a7e72";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("Subtotal: "+money(o.subtotal||0)+" · Descuento: -"+money(o.descMonto),pad,y+14);y+=30;}
   ctx.strokeStyle="#e8ddd2";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();y+=14;
   ctx.fillStyle="#e3f0e9";rr(ctx,pad,y,W-pad*2,44,8);ctx.fill();ctx.fillStyle="#8a7e72";ctx.font="bold 13px system-ui";ctx.textAlign="left";ctx.fillText("TOTAL:",pad+12,y+28);ctx.fillStyle="#1b5e20";ctx.font="bold 22px system-ui";ctx.textAlign="right";ctx.fillText(money(o.totalPrecio||o.precio*o.cantidad||0),W-pad-10,y+30);y+=58;
-  ctx.fillStyle="#8a7e72";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText("El Buen Gusto",W/2,y);
+  ctx.fillStyle="#8a7e72";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText("Roti SM",W/2,y);
   dlCanvas(c,"comanda-chef-"+o.clienteNombre.replace(/\s+/g,"-").toLowerCase());toast("Imagen generada");
 }
 
@@ -870,7 +900,6 @@ function genCompImg(){
  *  PUNTOS
  * ──────────────────────────────────────────────────────── */
 function renderPts(){
-  const fab=document.querySelector(".fab");if(fab)fab.style.display="none";
   const ppp=db.cfgPuntos.puntoPorPeso||1;
   const ranking=db.clientes.filter(c=>(c.puntos||0)>0).map(c=>({id:c.id,nombre:c.nombre,puntos:c.puntos||0})).sort((a,b)=>b.puntos-a.puntos);
   const maxPts=ranking.length?ranking[0].puntos:1;
@@ -960,11 +989,76 @@ function guardarPremio(id){const nom=document.getElementById("prNom")?.value.tri
 function editPremio(id){nuevoPremioForm(id)}
 function delPremio(id){if(!confirm("¿Eliminar este premio?"))return;db.premios=db.premios.filter(p=>p.id!==id);save();closeSh();cfgPtsForm();}
 
+
+/* ──────────────────────────────────────────────────────── *
+ *  EQUIPO (empleados)
+ * ──────────────────────────────────────────────────────── */
+function renderEmp(){
+  if(!db.empleados)db.empleados=[];
+  const chefs=db.empleados.filter(e=>e.rol==="chef");
+  const vendedores=db.empleados.filter(e=>e.rol==="vendedor");
+  let html=`<h1>👨‍🍳 Equipo</h1>`;
+  html+=`<h2>Chefs (${chefs.length})</h2>`;
+  if(!chefs.length) html+=`<div class="c" style="text-align:center;color:var(--mu);padding:20px">Sin chefs cargados. Tocá + para agregar.</div>`;
+  else chefs.forEach(e=>{html+=cardEmp(e);});
+  html+=`<h2>Vendedores (${vendedores.length})</h2>`;
+  if(!vendedores.length) html+=`<div class="c" style="text-align:center;color:var(--mu);padding:20px">Sin vendedores cargados.</div>`;
+  else vendedores.forEach(e=>{html+=cardEmp(e);});
+  $("#app").innerHTML=html;
+  const _f=getFab();_f.onclick=newEmpForm;_f.style.display="flex";
+}
+function cardEmp(e){
+  const rolChip=e.rol==="chef"?'<span class="chip ch-ac">👨‍🍳 Chef</span>':'<span class="chip ch-gr">💼 Vendedor</span>';
+  return `<div class="c"><div class="row" style="margin-bottom:6px">
+    <div><div style="font-size:15px;font-weight:700">${esc(e.nombre)}</div>
+    <div class="mu">${e.tel?"📞 "+esc(e.tel):""}</div></div>
+    ${rolChip}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${e.tel?`<button class="b w s" onclick="window.open('https://wa.me/${e.tel.replace(/ /g,'').replace(/-/g,'')}','_blank')">💬 WhatsApp</button>`:""}
+      <button class="b w s" onclick="editEmp('${e.id}')">Editar</button>
+      <button class="b w" style="background:#fce;color:var(--rd);border:0" onclick="delEmp('${e.id}')">✕</button>
+    </div>
+  </div>`;
+}
+function newEmpForm(id){
+  const e=id?db.empleados.find(e=>e.id===id):null;
+  sh(`<div class="hdl"></div>
+<div class="row"><b>${e?"Editar empleado":"Nuevo empleado"}</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div>
+<label>Nombre y apellido</label><input type="text" id="eNom" value="${esc(e?.nombre||"")}" placeholder="Ej: Juan Pérez">
+<label>Teléfono (para WhatsApp)</label><input type="tel" id="eTel" value="${esc(e?.tel||"")}" placeholder="Ej: 3442-123456">
+<label>Rol</label>
+<div class="seg" id="rolSeg">
+  <button class="${!e||e.rol==="chef"?"on":""}" onclick="setRol('chef',this)">👨‍🍳 Chef</button>
+  <button class="${e&&e.rol==="vendedor"?"on":""}" onclick="setRol('vendedor',this)">💼 Vendedor</button>
+</div>
+<input type="hidden" id="eRol" value="${e?.rol||"chef"}">
+<button class="b" onclick="guardarEmp('${e?.id||""}')">Guardar</button>`);
+}
+function setRol(v,btn){
+  document.getElementById("eRol").value=v;
+  document.querySelectorAll(".sh #rolSeg button").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+}
+function guardarEmp(id){
+  const nombre=document.getElementById("eNom")?.value.trim();
+  const tel=document.getElementById("eTel")?.value.trim()||"";
+  const rol=document.getElementById("eRol")?.value||"chef";
+  if(!nombre){alert("Ingresá el nombre");return;}
+  if(!db.empleados)db.empleados=[];
+  if(id){const e=db.empleados.find(e=>e.id===id);if(e){e.nombre=nombre;e.tel=tel;e.rol=rol;}}
+  else db.empleados.push({id:uid(),nombre,tel,rol,ts:Date.now()});
+  closeSh();save();renderEmp();toast("Empleado guardado");
+}
+function editEmp(id){newEmpForm(id);}
+function delEmp(id){
+  if(!confirm("¿Eliminar este empleado?"))return;
+  db.empleados=db.empleados.filter(e=>e.id!==id);
+  save();renderEmp();
+}
 /* ──────────────────────────────────────────────────────── *
  *  DATOS (backup + licencia)
  * ──────────────────────────────────────────────────────── */
 function renderDat(){
-  const fab=document.querySelector(".fab");if(fab)fab.style.display="none";
   const licInfo=PUB?`<div class="row" style="margin-top:6px"><span class="mu">${left()>=0?"Activa hasta":"Venció el"}</span><b>${fd(validUntil())}</b></div><div class="row" style="margin-top:6px"><span class="mu">Días restantes</span><b class="${left()<=5?"red":"grn"}">${Math.max(0,left())}</b></div><button class="b s" style="margin-top:10px" onclick="renewForm()">Ingresar clave de renovación</button>`:"<div class='mu' style='margin-top:6px'>Modo sin control de suscripción (desarrollo)</div>";
   const lastBack=db.cfg?.lastBackup?fd(db.cfg.lastBackup):"Ninguna todavía";
   let html=`<h1>💾 Datos</h1>`;
@@ -990,13 +1084,43 @@ function renderDat(){
 <input type="file" accept=".vcf,.vcard,text/vcard,text/x-vcard" onchange="importVCF(this)" style="padding:8px;background:var(--bg)">
 <div id="importStatus"></div>
 </div>`;
-  const brand=db.cfg?.brand||{nombre:"El Buen Gusto",emoji:"🍽️"};
-  html+=`<h2>Nombre y logo del restaurante</h2><div class="c"><label>Emoji (logo)</label><input type="text" id="cfgEmoji" value="${esc(brand.emoji)}" maxlength="4" style="width:80px;text-align:center;font-size:24px"><label>Nombre del restaurante</label><input type="text" id="cfgNombre" value="${esc(brand.nombre)}" placeholder="El Buen Gusto"><button class="b s" style="margin-top:4px" onclick="guardarBrand()">Guardar nombre</button></div>`;
+  const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
+  html+=`<h2>Nombre y logo del restaurante</h2><div class="c"><label>Emoji (logo)</label><input type="text" id="cfgEmoji" value="${esc(brand.emoji)}" maxlength="4" style="width:80px;text-align:center;font-size:24px"><label>Nombre del restaurante</label><input type="text" id="cfgNombre" value="${esc(brand.nombre)}" placeholder="Roti SM"><button class="b s" style="margin-top:4px" onclick="guardarBrand()">Guardar nombre</button></div>`;
   $("#app").innerHTML=html;
+}
+
+function waOrdenDiaChef(tel){
+  const hoy=db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
+  if(!hoy.length){toast("Sin órdenes activas hoy");return;}
+  const brand=db.cfg?.brand||{nombre:"Roti SM",logo:""};
+  const nl="\n";
+  let msg="*ORDEN DEL DÍA - "+brand.nombre.toUpperCase()+"*"+nl;
+  msg+=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})+nl+nl;
+  hoy.forEach(o=>{
+    const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
+    msg+="*"+o.clienteNombre+"*"+nl;
+    if(o.clienteDir)msg+="📍 "+o.clienteDir+nl;
+    items.forEach(it=>{msg+="  - "+it.platoNombre+" x"+it.cantidad+nl;});
+    msg+=(o.entrega==="retiro"?"🚶 Retira":"🚐 Mensajero");
+    if(o.notas)msg+=" | "+o.notas;
+    msg+=nl+nl;
+  });
+  // Resumen
+  const pm={};hoy.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]=0;pm[it.platoNombre]+=it.cantidad;});});
+  msg+="*RESUMEN:*"+nl;
+  Object.keys(pm).forEach(k=>{msg+="  "+k+": x"+pm[k]+nl;});
+  const telClean=tel?tel.replace(/ /g,"").replace(/-/g,""):"";
+  window.open("https://wa.me/"+(telClean?telClean:"")+"?text="+encodeURIComponent(msg),"_blank");
+  closeSh();
+}
+function elegirChefDia(){
+  const chefs=db.empleados?db.empleados.filter(e=>e.rol==="chef"):[];
+  const opts=chefs.map(c=>`<button class="b s" style="margin-bottom:6px" onclick="closeSh();waOrdenDiaChef('${c.tel}')">👨‍🍳 ${esc(c.nombre)}</button>`).join("");
+  sh(`<div class="hdl"></div><b>¿A qué chef enviás?</b><div style="margin-top:12px">${opts}</div>`);
 }
 function backup(){
   if(!db.cfg)db.cfg={};db.cfg.lastBackup=today();save();
-  const blob=new Blob([JSON.stringify({app:"El Buen Gusto",version:2,fechaExport:new Date().toISOString(),db},null,2)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({app:"Roti SM",version:2,fechaExport:new Date().toISOString(),db},null,2)],{type:"application/json"});
   const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download="backup-el-buen-gusto-"+today()+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast("Copia de seguridad descargada");
 }
 function restore(inp){
@@ -1072,7 +1196,7 @@ function importVCF(inp){
 
 function guardarBrand(){
   const emoji=document.getElementById("cfgEmoji")?.value.trim()||"🍽️";
-  const nombre=document.getElementById("cfgNombre")?.value.trim()||"El Buen Gusto";
+  const nombre=document.getElementById("cfgNombre")?.value.trim()||"Roti SM";
   if(!db.cfg)db.cfg={};db.cfg.brand={emoji,nombre};
   document.title=nombre;save();render();toast("Nombre actualizado");
 }
