@@ -58,9 +58,7 @@ nav button b{display:block;font-size:19px}nav .on{color:var(--ac);font-weight:70
 .add-plato{width:100%;padding:9px;border:1px dashed var(--bd);border-radius:10px;background:transparent;color:var(--ac);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px}
 .info{background:var(--acl);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ac);font-weight:600;line-height:1.4;margin-bottom:10px}
 .info.am{background:var(--aml);color:var(--am)}.info.gr{background:var(--grl);color:var(--gr)}.info.rd{background:#fce;color:var(--rd)}
-.fab{position:sticky;top:calc(env(safe-area-inset-top,0px));z-index:8;width:100%;display:flex;justify-content:flex-end;pointer-events:none;margin-bottom:-4px}
-.fab button{pointer-events:all;background:var(--ac);border:none;color:#fff;font-size:22px;font-weight:700;cursor:pointer;border-radius:12px;padding:8px 18px;box-shadow:0 2px 8px rgba(192,113,58,.35);font-family:inherit}
-.fab button:active{opacity:.85}
+/* fab-wrap is created by getFab() with inline styles */
 .toast-el{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);left:50%;transform:translateX(-50%) translateY(16px);background:#1e1a16;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .25s;z-index:50;pointer-events:none;white-space:nowrap}
 .toast-el.show{opacity:1;transform:translateX(-50%) translateY(0)}
 canvas{border-radius:12px;max-width:100%;display:none}
@@ -150,14 +148,18 @@ const getSaldo=cliId=>{
 
 /* ── NAV / RENDER ──────────────────────────────────────── */
 function getFab(){
-  let f=document.querySelector(".fab");
+  // FAB lives OUTSIDE #app so innerHTML resets don't kill it
+  let f=document.querySelector(".fab-wrap");
   if(!f){
-    f=document.createElement("div");f.className="fab";
-    const btn=document.createElement("button");btn.textContent="+ Nuevo";
+    f=document.createElement("div");f.className="fab-wrap";
+    f.style.cssText="position:sticky;top:calc(env(safe-area-inset-top,0px));z-index:8;display:flex;justify-content:flex-end;padding:6px 0 2px;background:transparent;pointer-events:none";
+    const btn=document.createElement("button");
+    btn.style.cssText="pointer-events:all;background:var(--ac);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;border-radius:12px;padding:8px 16px;box-shadow:0 2px 8px rgba(192,113,58,.35);font-family:inherit";
+    btn.textContent="+ Nuevo";
     f.appendChild(btn);
-    // Insert at top of #app
+    // Insert BEFORE #app so innerHTML of app never destroys it
     const app=document.getElementById("app");
-    app.insertBefore(f,app.firstChild);
+    app.parentNode.insertBefore(f,app);
   }
   return f.querySelector("button");
 }
@@ -169,14 +171,10 @@ function render(){
     return;
   }
   $("#nav").innerHTML=tabs.map(t=>`<button class="${tab===t[0]?"on":""}" onclick="tab='${t[0]}';render()"><b>${t[1]}</b>${t[2]}</button>`).join("");
-  if(!db.contactosImportados){
-    const ex={};db.clientes.forEach(c=>{if(c.tel)ex[c.tel.replace(/[\s\-]/g,"")]=true});
-    AGENDA.forEach(ct=>{const t=ct.tel.replace(/[\s\-]/g,"");if(ex[t])return;db.clientes.push({id:uid(),nombre:ct.nombre,tel:ct.tel,dir:"",puntos:0,ts:Date.now()});ex[t]=true});
-    db.contactosImportados=true;save();
-  }
+  // No auto-import: clients start empty for each new customer
   const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,emp:renderEmp,dat:renderDat};
   const hideFabTabs=["inf","pts","emp","dat"];
-  const fabEl=document.querySelector(".fab");
+  const fabEl=document.querySelector(".fab-wrap");
   if(fabEl)fabEl.style.display=hideFabTabs.includes(tab)?"none":"flex";
   (pages[tab]||renderOrd)();
 }
@@ -189,8 +187,9 @@ function renderOrd(){
   const np=hoy.filter(o=>o.estado==="pendiente").length;
   const nl=hoy.filter(o=>o.estado==="listo").length;
   const nc=hoy.filter(o=>o.estado==="cancelado").length;
-  const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
-  let html=`<div class="row" style="margin-bottom:4px"><h1 style="margin:0">${brand.emoji} ${esc(brand.nombre)}</h1><span class="mu">${new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"})}</span></div>`;
+  const brand=db.cfg?.brand||{nombre:"Roti SM",logo:""};
+  const logoEl=brand.logo?`<img src="${brand.logo}" style="width:30px;height:30px;border-radius:7px;object-fit:cover;margin-right:7px;vertical-align:middle">`:'🍽️ ';
+  let html=`<div class="row" style="margin-bottom:4px"><h1 style="margin:0;display:flex;align-items:center">${logoEl}${esc(brand.nombre)}</h1><span class="mu">${new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"})}</span></div>`;
   html+=banner0();
   html+=`<button class="b s" style="margin-bottom:10px" onclick="abrirPDFDia()">📋 Orden del día para el chef</button>`;
   html+=`<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none">`;
