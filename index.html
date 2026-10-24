@@ -58,7 +58,9 @@ nav button b{display:block;font-size:19px}nav .on{color:var(--ac);font-weight:70
 .add-plato{width:100%;padding:9px;border:1px dashed var(--bd);border-radius:10px;background:transparent;color:var(--ac);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px}
 .info{background:var(--acl);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ac);font-weight:600;line-height:1.4;margin-bottom:10px}
 .info.am{background:var(--aml);color:var(--am)}.info.gr{background:var(--grl);color:var(--gr)}.info.rd{background:#fce;color:var(--rd)}
-/* fab-wrap is created by getFab() with inline styles */
+.fab-wrap{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+68px);right:16px;z-index:11}
+.fab-wrap button{background:var(--ac);border:none;color:#fff;font-size:22px;font-weight:700;cursor:pointer;width:52px;height:52px;border-radius:50%;box-shadow:0 3px 12px rgba(192,113,58,.45);font-family:inherit;display:flex;align-items:center;justify-content:center}
+.fab-wrap button:active{transform:scale(.92)}
 .toast-el{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);left:50%;transform:translateX(-50%) translateY(16px);background:#1e1a16;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .25s;z-index:50;pointer-events:none;white-space:nowrap}
 .toast-el.show{opacity:1;transform:translateX(-50%) translateY(0)}
 canvas{border-radius:12px;max-width:100%;display:none}
@@ -130,7 +132,7 @@ let tab="ord",orFiltro="todos",descTipo="pct",entrega="mensajero",formaPago="efe
 let selYear=new Date().getFullYear(),selMonth=new Date().getMonth(),infPeriodo="dia";
 let busqCli="",soloDeudores=false,busqPla="",platoRowCount=0;
 let compId=null,canjeCliId=null;
-const tabs=[["ord","🍽️","Ordenes"],["cli","👥","Clientes"],["pla","🥘","Platos"],["inf","📊","Informe"],["pts","⭐","Puntos"],["emp","👨‍🍳","Equipo"],["dat","⚙️","Config"]];
+const tabs=[["ord","🍽️","Ordenes"],["cli","👥","Clientes"],["pla","🥘","Platos"],["inf","📊","Informe"],["dat","⚙️","Config"]];
 
 /* ── HELPERS ───────────────────────────────────────────── */
 const getWeek=()=>{const n=new Date(),d=n.getDay()||7,m=new Date(n);m.setDate(n.getDate()-d+1);const s=new Date(m);s.setDate(m.getDate()+6);return{from:m.toISOString().slice(0,10),to:s.toISOString().slice(0,10)}};
@@ -148,18 +150,13 @@ const getSaldo=cliId=>{
 
 /* ── NAV / RENDER ──────────────────────────────────────── */
 function getFab(){
-  // FAB lives OUTSIDE #app so innerHTML resets don't kill it
   let f=document.querySelector(".fab-wrap");
   if(!f){
     f=document.createElement("div");f.className="fab-wrap";
-    f.style.cssText="position:sticky;top:calc(env(safe-area-inset-top,0px));z-index:8;display:flex;justify-content:flex-end;padding:6px 0 2px;background:transparent;pointer-events:none";
     const btn=document.createElement("button");
-    btn.style.cssText="pointer-events:all;background:var(--ac);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;border-radius:12px;padding:8px 16px;box-shadow:0 2px 8px rgba(192,113,58,.35);font-family:inherit";
-    btn.textContent="+ Nuevo";
+    btn.textContent="+";
     f.appendChild(btn);
-    // Insert BEFORE #app so innerHTML of app never destroys it
-    const app=document.getElementById("app");
-    app.parentNode.insertBefore(f,app);
+    document.body.appendChild(f);
   }
   return f.querySelector("button");
 }
@@ -173,7 +170,7 @@ function render(){
   $("#nav").innerHTML=tabs.map(t=>`<button class="${tab===t[0]?"on":""}" onclick="tab='${t[0]}';render()"><b>${t[1]}</b>${t[2]}</button>`).join("");
   // No auto-import: clients start empty for each new customer
   const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,emp:renderEmp,dat:renderDat};
-  const hideFabTabs=["inf","pts","emp","dat"];
+  const hideFabTabs=["inf","dat"];
   const fabEl=document.querySelector(".fab-wrap");
   if(fabEl)fabEl.style.display=hideFabTabs.includes(tab)?"none":"flex";
   (pages[tab]||renderOrd)();
@@ -187,6 +184,25 @@ function renderOrd(){
   const np=hoy.filter(o=>o.estado==="pendiente").length;
   const nl=hoy.filter(o=>o.estado==="listo").length;
   const nc=hoy.filter(o=>o.estado==="cancelado").length;
+  // sub-tabs for pts and emp inside config
+  const cfgSub=db._cfgSub||"lic";
+  html+=`<div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none">`;
+  [["lic","🔐 Licencia"],["bak","💾 Backup"],["pla","⭐ Puntos"],["equ","👨‍🍳 Equipo"],["bra","🎨 Apariencia"],["imp","📋 Contactos"]].forEach(([k,l])=>{
+    html+=`<button onclick="db._cfgSub='${k}';renderDat()" style="white-space:nowrap;padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${cfgSub===k?"var(--ac)":"var(--card)"};color:${cfgSub===k?"#fff":"var(--mu)"};cursor:pointer;flex-shrink:0">${l}</button>`;
+  });
+  html+=`</div>`;
+
+  if(cfgSub==="pla"){
+    html+=renderPtsInline();
+    $("#app").innerHTML=html;return;
+  }
+  if(cfgSub==="equ"){
+    html+=renderEmpInline();
+    $("#app").innerHTML=html;
+    // FAB for equipo
+    const _f=getFab();_f.onclick=newEmpForm;_f.style.display="flex";
+    return;
+  }
   const brand=db.cfg?.brand||{nombre:"Roti SM",logo:""};
   const logoEl=brand.logo?`<img src="${brand.logo}" style="width:30px;height:30px;border-radius:7px;object-fit:cover;margin-right:7px;vertical-align:middle">`:'🍽️ ';
   let html=`<div class="row" style="margin-bottom:4px"><h1 style="margin:0;display:flex;align-items:center">${logoEl}${esc(brand.nombre)}</h1><span class="mu">${new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"})}</span></div>`;
@@ -989,20 +1005,44 @@ function editPremio(id){nuevoPremioForm(id)}
 function delPremio(id){if(!confirm("¿Eliminar este premio?"))return;db.premios=db.premios.filter(p=>p.id!==id);save();closeSh();cfgPtsForm();}
 
 
+function renderPtsInline(){
+  // Returns puntos HTML for embedding in config
+  const ppp=db.cfgPuntos?.puntoPorPeso||1;
+  const ranking=db.clientes.filter(c=>(c.puntos||0)>0).map(c=>({id:c.id,nombre:c.nombre,puntos:c.puntos||0})).sort((a,b)=>b.puntos-a.puntos);
+  const maxPts=ranking.length?ranking[0].puntos:1;
+  const medals=["🥇","🥈","🥉"];
+  let h=`<div class="row" style="margin-bottom:10px"><span class="mu">1 pto cada $${money(1/ppp).replace("$","")}</span><button class="b w s" onclick="cfgPtsForm()">⚙️</button></div>`;
+  h+=`<h2>Premios</h2><div class="c">`;
+  if(!db.premios||!db.premios.length)h+=`<div style="text-align:center;color:var(--mu);padding:12px">Sin premios. Tocá ⚙️ para configurar.</div>`;
+  else db.premios.forEach(p=>{h+=`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;font-weight:700">${esc(p.nombre)}</div>${p.desc?`<div class="mu">${esc(p.desc)}</div>`:""}</div><span class="chip ch-pt">⭐ ${p.puntos}</span></div>`;});
+  h+=`</div>`;
+  h+=`<h2>Ranking</h2>`;
+  if(!ranking.length)h+=`<div class="c" style="text-align:center;color:var(--mu);padding:20px">Sin puntos acumulados aún.</div>`;
+  else{h+=`<div class="c">`;ranking.forEach((r,i)=>{const pct=Math.round(r.puntos/maxPts*100);h+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:${i<ranking.length-1?"1px solid var(--bd)":"none"}"><div style="width:28px;text-align:center;font-size:${i<3?16:13}px;font-weight:700;color:var(--mu)">${i<3?medals[i]:"#"+(i+1)}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.nombre)}</div><div style="height:7px;background:var(--bd);border-radius:4px;overflow:hidden;margin:3px 0"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--ac),#e8a060)"></div></div></div><div style="text-align:right;flex-shrink:0"><span class="chip ch-pt">⭐ ${r.puntos}</span><div style="display:flex;gap:4px;margin-top:4px"><button class="b w s" style="padding:4px 8px;font-size:11px" onclick="abrirNotifPts('${r.id}')">📷</button><button class="b w s" style="padding:4px 8px;font-size:11px" onclick="abrirCanje('${r.id}')">Canjear</button></div></div></div>`;});h+=`</div>`;}
+  const canjesRec=db.canjes?db.canjes.slice().sort((a,b)=>b.ts-a.ts).slice(0,10):[];
+  if(canjesRec.length){h+=`<h2>Canjes</h2><div class="c">`;canjesRec.forEach(cj=>{h+=`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--bd)"><div><div style="font-size:13px;font-weight:700">${esc(cj.clienteNombre)}</div><div class="mu">${esc(cj.premioNombre)} · ${fmtDate(cj.fecha)}</div></div><span class="chip ch-rd">-${cj.puntos} pts</span></div>`;});h+=`</div>`;}
+  return h;
+}
+
+function renderEmpInline(){
+  if(!db.empleados)db.empleados=[];
+  const chefs=db.empleados.filter(e=>e.rol==="chef");
+  const vendedores=db.empleados.filter(e=>e.rol==="vendedor");
+  let h=`<h2>Chefs (${chefs.length})</h2>`;
+  if(!chefs.length)h+=`<div class="c" style="text-align:center;color:var(--mu);padding:16px">Sin chefs. Tocá + para agregar.</div>`;
+  else chefs.forEach(e=>{h+=cardEmp(e);});
+  h+=`<h2>Vendedores (${vendedores.length})</h2>`;
+  if(!vendedores.length)h+=`<div class="c" style="text-align:center;color:var(--mu);padding:16px">Sin vendedores.</div>`;
+  else vendedores.forEach(e=>{h+=cardEmp(e);});
+  return h;
+}
+
 /* ──────────────────────────────────────────────────────── *
  *  EQUIPO (empleados)
  * ──────────────────────────────────────────────────────── */
 function renderEmp(){
-  if(!db.empleados)db.empleados=[];
-  const chefs=db.empleados.filter(e=>e.rol==="chef");
-  const vendedores=db.empleados.filter(e=>e.rol==="vendedor");
   let html=`<h1>👨‍🍳 Equipo</h1>`;
-  html+=`<h2>Chefs (${chefs.length})</h2>`;
-  if(!chefs.length) html+=`<div class="c" style="text-align:center;color:var(--mu);padding:20px">Sin chefs cargados. Tocá + para agregar.</div>`;
-  else chefs.forEach(e=>{html+=cardEmp(e);});
-  html+=`<h2>Vendedores (${vendedores.length})</h2>`;
-  if(!vendedores.length) html+=`<div class="c" style="text-align:center;color:var(--mu);padding:20px">Sin vendedores cargados.</div>`;
-  else vendedores.forEach(e=>{html+=cardEmp(e);});
+  html+=renderEmpInline();
   $("#app").innerHTML=html;
   const _f=getFab();_f.onclick=newEmpForm;_f.style.display="flex";
 }
@@ -1021,17 +1061,19 @@ function cardEmp(e){
 }
 function newEmpForm(id){
   const e=id?db.empleados.find(e=>e.id===id):null;
-  sh(`<div class="hdl"></div>
+  const modal=sh(`<div class="hdl"></div>
 <div class="row"><b>${e?"Editar empleado":"Nuevo empleado"}</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div>
 <label>Nombre y apellido</label><input type="text" id="eNom" value="${esc(e?.nombre||"")}" placeholder="Ej: Juan Pérez">
 <label>Teléfono (para WhatsApp)</label><input type="tel" id="eTel" value="${esc(e?.tel||"")}" placeholder="Ej: 3442-123456">
 <label>Rol</label>
-<div class="seg" id="rolSeg">
+<div class="seg" id="rolSeg" style="margin-bottom:14px">
   <button class="${!e||e.rol==="chef"?"on":""}" onclick="setRol('chef',this)">👨‍🍳 Chef</button>
   <button class="${e&&e.rol==="vendedor"?"on":""}" onclick="setRol('vendedor',this)">💼 Vendedor</button>
 </div>
 <input type="hidden" id="eRol" value="${e?.rol||"chef"}">
-<button class="b" onclick="guardarEmp('${e?.id||""}')">Guardar</button>`);
+<button class="b" style="margin-bottom:20px" onclick="guardarEmp('${e?.id||""}')">Guardar</button>`);
+  // Scroll modal into view
+  setTimeout(()=>{const btn=modal?.querySelector(".b");if(btn)btn.scrollIntoView({block:"nearest"});},100);
 }
 function setRol(v,btn){
   document.getElementById("eRol").value=v;
