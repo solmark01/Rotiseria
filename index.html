@@ -58,14 +58,14 @@ nav button b{display:block;font-size:19px}nav .on{color:var(--ac);font-weight:70
 .add-plato{width:100%;padding:9px;border:1px dashed var(--bd);border-radius:10px;background:transparent;color:var(--ac);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px}
 .info{background:var(--acl);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ac);font-weight:600;line-height:1.4;margin-bottom:10px}
 .info.am{background:var(--aml);color:var(--am)}.info.gr{background:var(--grl);color:var(--gr)}.info.rd{background:#fce;color:var(--rd)}
-.fab-wrap{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+68px);right:16px;z-index:11}
-.fab-wrap button{background:var(--ac);border:none;color:#fff;font-size:22px;font-weight:700;cursor:pointer;width:52px;height:52px;border-radius:50%;box-shadow:0 3px 12px rgba(192,113,58,.45);font-family:inherit;display:flex;align-items:center;justify-content:center}
-.fab-wrap button:active{transform:scale(.92)}
+#fabBtn{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+68px);right:16px;z-index:11;background:var(--ac);border:none;color:#fff;font-size:28px;font-weight:400;cursor:pointer;width:54px;height:54px;border-radius:50%;box-shadow:0 3px 14px rgba(192,113,58,.5);font-family:inherit;line-height:1}
+#fabBtn:active{transform:scale(.92)}
 .toast-el{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px)+80px);left:50%;transform:translateX(-50%) translateY(16px);background:#1e1a16;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .25s;z-index:50;pointer-events:none;white-space:nowrap}
 .toast-el.show{opacity:1;transform:translateX(-50%) translateY(0)}
 canvas{border-radius:12px;max-width:100%;display:none}
 </style></head><body>
 <div id="app"></div>
+<button id="fabBtn" style="display:none" onclick="fabAction()">+</button>
 <nav><div id="nav"></div></nav>
 <div class="toast-el" id="toast"></div>
 <canvas id="exportCanvas"></canvas>
@@ -149,16 +149,17 @@ const getSaldo=cliId=>{
 };
 
 /* ── NAV / RENDER ──────────────────────────────────────── */
-function getFab(){
-  let f=document.querySelector(".fab-wrap");
-  if(!f){
-    f=document.createElement("div");f.className="fab-wrap";
-    const btn=document.createElement("button");
-    btn.textContent="+";
-    f.appendChild(btn);
-    document.body.appendChild(f);
-  }
-  return f.querySelector("button");
+var _fabCb=null;
+function fabAction(){if(_fabCb)_fabCb();}
+function getFab(){return document.getElementById("fabBtn");}
+function setFab(cb){
+  _fabCb=cb;
+  const f=document.getElementById("fabBtn");
+  if(f)f.style.display="flex";
+}
+function hideFab(){
+  const f=document.getElementById("fabBtn");
+  if(f)f.style.display="none";
 }
 function render(){
   licTick();
@@ -170,9 +171,7 @@ function render(){
   $("#nav").innerHTML=tabs.map(t=>`<button class="${tab===t[0]?"on":""}" onclick="tab='${t[0]}';render()"><b>${t[1]}</b>${t[2]}</button>`).join("");
   // No auto-import: clients start empty for each new customer
   const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,emp:renderEmp,dat:renderDat};
-  const hideFabTabs=["inf","dat"];
-  const fabEl=document.querySelector(".fab-wrap");
-  if(fabEl)fabEl.style.display=hideFabTabs.includes(tab)?"none":"flex";
+  if(["inf","dat"].includes(tab)){hideFab();}
   (pages[tab]||renderOrd)();
 }
 
@@ -184,25 +183,6 @@ function renderOrd(){
   const np=hoy.filter(o=>o.estado==="pendiente").length;
   const nl=hoy.filter(o=>o.estado==="listo").length;
   const nc=hoy.filter(o=>o.estado==="cancelado").length;
-  // sub-tabs for pts and emp inside config
-  const cfgSub=db._cfgSub||"lic";
-  html+=`<div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none">`;
-  [["lic","🔐 Licencia"],["bak","💾 Backup"],["pla","⭐ Puntos"],["equ","👨‍🍳 Equipo"],["bra","🎨 Apariencia"],["imp","📋 Contactos"]].forEach(([k,l])=>{
-    html+=`<button onclick="db._cfgSub='${k}';renderDat()" style="white-space:nowrap;padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${cfgSub===k?"var(--ac)":"var(--card)"};color:${cfgSub===k?"#fff":"var(--mu)"};cursor:pointer;flex-shrink:0">${l}</button>`;
-  });
-  html+=`</div>`;
-
-  if(cfgSub==="pla"){
-    html+=renderPtsInline();
-    $("#app").innerHTML=html;return;
-  }
-  if(cfgSub==="equ"){
-    html+=renderEmpInline();
-    $("#app").innerHTML=html;
-    // FAB for equipo
-    const _f=getFab();_f.onclick=newEmpForm;_f.style.display="flex";
-    return;
-  }
   const brand=db.cfg?.brand||{nombre:"Roti SM",logo:""};
   const logoEl=brand.logo?`<img src="${brand.logo}" style="width:30px;height:30px;border-radius:7px;object-fit:cover;margin-right:7px;vertical-align:middle">`:'🍽️ ';
   let html=`<div class="row" style="margin-bottom:4px"><h1 style="margin:0;display:flex;align-items:center">${logoEl}${esc(brand.nombre)}</h1><span class="mu">${new Date().toLocaleDateString("es-AR",{weekday:"short",day:"numeric",month:"short"})}</span></div>`;
@@ -217,7 +197,7 @@ function renderOrd(){
   if(!lista.length){html+=`<div class="c" style="text-align:center;color:var(--mu);padding:32px 0"><div style="font-size:36px">📋</div><div style="margin-top:8px">${orFiltro!=="todos"?"Sin órdenes con este filtro":"Sin órdenes hoy"}</div></div>`;}
   else lista.forEach(o=>{html+=cardOrd(o);});
   $("#app").innerHTML=html;
-  const _f=getFab();_f.onclick=newOrdForm;_f.style.display="flex";
+  setFab(newOrdForm);
 }
 
 function cardOrd(o){
@@ -474,7 +454,7 @@ function onCliCh(){const v=document.getElementById("oCli")?.value;const c=db.cli
  *  CLIENTES
  * ──────────────────────────────────────────────────────── */
 function renderCli(){
-  const _f=getFab();_f.onclick=()=>newCliForm();_f.style.display="flex";
+  setFab(()=>newCliForm());
   let lista=db.clientes.filter(c=>{
     if(soloDeudores&&getSaldo(c.id).saldo<=0)return false;
     if(filtroEtiq&&!(c.etiquetas||[]).includes(filtroEtiq))return false;
@@ -573,7 +553,7 @@ function guardarPago(){
  *  PLATOS
  * ──────────────────────────────────────────────────────── */
 function renderPla(){
-  const _f=getFab();_f.onclick=()=>newPlaForm();_f.style.display="flex";
+  setFab(()=>newPlaForm());
   const lista=db.platos.filter(p=>{if(!busqPla)return true;const q=nz(busqPla);return nz(p.nombre).includes(q)||(p.desc&&nz(p.desc).includes(q));}).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
   let html=`<h1>🥘 Platos</h1>`;
   html+=`<div style="display:flex;gap:8px;margin-bottom:10px"><input style="margin:0;flex:1" placeholder="Buscar plato..." value="${esc(busqPla)}" oninput="busqPla=this.value;renderPla()" onkeydown="if(event.key==='Enter')renderPla()"></div>`;
@@ -1044,7 +1024,7 @@ function renderEmp(){
   let html=`<h1>👨‍🍳 Equipo</h1>`;
   html+=renderEmpInline();
   $("#app").innerHTML=html;
-  const _f=getFab();_f.onclick=newEmpForm;_f.style.display="flex";
+  setFab(newEmpForm);
 }
 function cardEmp(e){
   const rolChip=e.rol==="chef"?'<span class="chip ch-ac">👨‍🍳 Chef</span>':'<span class="chip ch-gr">💼 Vendedor</span>';
@@ -1125,6 +1105,24 @@ function renderDat(){
 <input type="file" accept=".vcf,.vcard,text/vcard,text/x-vcard" onchange="importVCF(this)" style="padding:8px;background:var(--bg)">
 <div id="importStatus"></div>
 </div>`;
+  // sub-tabs for pts and emp inside config
+  const cfgSub=db._cfgSub||"lic";
+  html+=`<div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none">`;
+  [["lic","🔐 Licencia"],["bak","💾 Backup"],["pla","⭐ Puntos"],["equ","👨‍🍳 Equipo"],["bra","🎨 Apariencia"],["imp","📋 Contactos"]].forEach(([k,l])=>{
+    html+=`<button onclick="db._cfgSub='${k}';renderDat()" style="white-space:nowrap;padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${cfgSub===k?"var(--ac)":"var(--card)"};color:${cfgSub===k?"#fff":"var(--mu)"};cursor:pointer;flex-shrink:0">${l}</button>`;
+  });
+  html+=`</div>`;
+
+  if(cfgSub==="pla"){
+    html+=renderPtsInline();
+    $("#app").innerHTML=html;return;
+  }
+  if(cfgSub==="equ"){
+    html+=renderEmpInline();
+    $("#app").innerHTML=html;
+    setFab(newEmpForm);
+    return;
+  }
   const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
   html+=`<h2>Nombre y logo del restaurante</h2><div class="c"><label>Emoji (logo)</label><input type="text" id="cfgEmoji" value="${esc(brand.emoji)}" maxlength="4" style="width:80px;text-align:center;font-size:24px"><label>Nombre del restaurante</label><input type="text" id="cfgNombre" value="${esc(brand.nombre)}" placeholder="Roti SM"><button class="b s" style="margin-top:4px" onclick="guardarBrand()">Guardar nombre</button></div>`;
   $("#app").innerHTML=html;
