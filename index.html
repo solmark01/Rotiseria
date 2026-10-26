@@ -166,12 +166,34 @@ function render(){
   if(PUB&&isLocked()){
     $("#nav").innerHTML="";
     $("#app").innerHTML=`<div style="text-align:center;margin-top:8vh"><div style="font-size:48px">🔒</div><h1>${lockMsg?"Fecha incorrecta":"Suscripción vencida"}</h1><p class="mu">${lockMsg||"Para seguir usando la app, pedí tu clave de activación. Tus datos están guardados y no se pierden."}</p><div class="c"><div class="mu">Tu código de cliente</div><div class="big" style="font-size:28px;letter-spacing:4px">${lic.id}</div></div><div style="text-align:left"><label>Clave de activación</label><input id="lk" placeholder="Pegá la clave acá" autocapitalize="off" autocomplete="off"></div><button class="b" onclick="activate($('#lk').value)" style="margin-top:4px">Activar</button><p id="lm" class="red" style="margin-top:8px;font-size:14px"></p></div>`;
+    hideFab();
     return;
   }
   $("#nav").innerHTML=tabs.map(t=>`<button class="${tab===t[0]?"on":""}" onclick="tab='${t[0]}';render()"><b>${t[1]}</b>${t[2]}</button>`).join("");
+  // Agregar doble click en pestañas para crear nuevo
+  setTimeout(()=>{
+    document.querySelectorAll("#nav button").forEach((btn,i)=>{
+      const t=tabs[i][0];
+      btn.ondblclick=null;
+      if(t==="ord") btn.ondblclick=()=>newOrdForm();
+      if(t==="cli") btn.ondblclick=()=>newCliForm();
+      if(t==="pla") btn.ondblclick=()=>newPlaForm();
+    });
+    const appEl=$("#app");
+    if(appEl){ appEl.ondblclick=null; }
+    if(["ord","cli","pla"].includes(tab) && appEl){
+      appEl.ondblclick=(e)=>{
+        const tgt=e.target;
+        if(tgt.closest("button") || tgt.closest("a") || tgt.closest("input") || tgt.closest("select") || tgt.closest("textarea") || tgt.closest(".sh") || tgt.closest("nav")) return;
+        if(tab==="ord") newOrdForm();
+        else if(tab==="cli") newCliForm();
+        else if(tab==="pla") newPlaForm();
+      };
+    }
+  },0);
   // No auto-import: clients start empty for each new customer
   const pages={ord:renderOrd,cli:renderCli,pla:renderPla,inf:renderInf,pts:renderPts,emp:renderEmp,dat:renderDat};
-  if(["inf","dat"].includes(tab)){hideFab();}
+  if(["inf","dat","pts","emp"].includes(tab)){hideFab();}
   (pages[tab]||renderOrd)();
 }
 
@@ -197,7 +219,7 @@ function renderOrd(){
   if(!lista.length){html+=`<div class="c" style="text-align:center;color:var(--mu);padding:32px 0"><div style="font-size:36px">📋</div><div style="margin-top:8px">${orFiltro!=="todos"?"Sin órdenes con este filtro":"Sin órdenes hoy"}</div></div>`;}
   else lista.forEach(o=>{html+=cardOrd(o);});
   $("#app").innerHTML=html;
-  setFab(newOrdForm);
+  hideFab();
 }
 
 function cardOrd(o){
@@ -454,7 +476,7 @@ function onCliCh(){const v=document.getElementById("oCli")?.value;const c=db.cli
  *  CLIENTES
  * ──────────────────────────────────────────────────────── */
 function renderCli(){
-  setFab(()=>newCliForm());
+  hideFab();
   let lista=db.clientes.filter(c=>{
     if(soloDeudores&&getSaldo(c.id).saldo<=0)return false;
     if(filtroEtiq&&!(c.etiquetas||[]).includes(filtroEtiq))return false;
@@ -473,8 +495,8 @@ function renderCli(){
   allEtiq.forEach(e=>{html+=`<button onclick="filtroEtiq='${esc(e)}';renderCli()" style="padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--bd);background:${filtroEtiq===e?"var(--ac)":"var(--card)"};color:${filtroEtiq===e?"#fff":"var(--mu)"};cursor:pointer">${esc(e)}</button>`;});
   html+=`</div>`;
   html+=`<div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="soloDeudores=!soloDeudores;renderCli()" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid ${soloDeudores?"var(--rd)":"var(--bd)"};background:${soloDeudores?"#fce":"var(--card)"};color:${soloDeudores?"var(--rd)":"var(--mu)"};cursor:pointer">💸 Deudores${totalDeudores>0?" ("+totalDeudores+")":""}</button></div>`;
-  html+=`<div class="mu" style="margin-bottom:8px">${db.clientes.length} clientes${busqCli?" · "+lista.length+" resultados":""}</div>`;
-  if(!lista.length)html+=`<div class="c" style="text-align:center;color:var(--mu);padding:24px 0">${busqCli?'Sin resultados para "'+esc(busqCli)+'"':"Sin clientes. Tocá + para agregar."}</div>`;
+  html+=`<div class="mu" style="margin-bottom:8px">${db.clientes.length} clientes${busqCli?" · "+lista.length+" resultados":""} · Doble clic para agregar</div>`;
+  if(!lista.length)html+=`<div class="c" style="text-align:center;color:var(--mu);padding:24px 0">${busqCli?'Sin resultados para "'+esc(busqCli)+'"':"Sin clientes. Doble clic en Clientes o aquí para agregar."}</div>`;
   else lista.forEach(c=>{
     const cc=getSaldo(c.id);
     const sColor=cc.saldo>0?"var(--rd)":cc.saldo<0?"var(--gr)":"var(--mu)";
@@ -553,12 +575,12 @@ function guardarPago(){
  *  PLATOS
  * ──────────────────────────────────────────────────────── */
 function renderPla(){
-  setFab(()=>newPlaForm());
+  hideFab();
   const lista=db.platos.filter(p=>{if(!busqPla)return true;const q=nz(busqPla);return nz(p.nombre).includes(q)||(p.desc&&nz(p.desc).includes(q));}).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
   let html=`<h1>🥘 Platos</h1>`;
   html+=`<div style="display:flex;gap:8px;margin-bottom:10px"><input style="margin:0;flex:1" placeholder="Buscar plato..." value="${esc(busqPla)}" oninput="busqPla=this.value;renderPla()" onkeydown="if(event.key==='Enter')renderPla()"></div>`;
-  html+=`<div class="mu" style="margin-bottom:8px">${db.platos.length} platos${busqPla?" · "+lista.length+" resultados":""}</div>`;
-  if(!lista.length)html+=`<div class="c" style="text-align:center;color:var(--mu);padding:24px 0">${busqPla?'Sin resultados para "'+esc(busqPla)+'"':"Sin platos. Tocá + para agregar."}</div>`;
+  html+=`<div class="mu" style="margin-bottom:8px">${db.platos.length} platos${busqPla?" · "+lista.length+" resultados":""} · Doble clic para agregar</div>`;
+  if(!lista.length)html+=`<div class="c" style="text-align:center;color:var(--mu);padding:24px 0">${busqPla?'Sin resultados para "'+esc(busqPla)+'"':"Sin platos. Doble clic en Platos o aquí para agregar."}</div>`;
   else lista.forEach(p=>{
     const m=p.costo>0?((p.precio-p.costo)/p.precio*100).toFixed(0)+"%":"—";
     html+=`<div class="c"><div class="row" style="margin-bottom:4px"><div style="flex:1"><div style="font-size:15px;font-weight:700">${esc(p.nombre)}</div>${p.desc?`<div class="mu">${esc(p.desc)}</div>`:""}</div></div><div style="display:flex;gap:10px;font-size:13px;margin:6px 0"><span class="mu">Costo <b>${money(p.costo||0)}</b></span><span style="color:var(--gr);font-weight:700">Venta ${money(p.precio)}</span><span class="mu">Margen <b>${m}</b></span></div><div style="display:flex;gap:5px"><button class="b w s" onclick="editPla('${p.id}')">Editar</button><button class="b w" style="background:#fce;color:var(--rd);border:0" onclick="delPla('${p.id}')">Eliminar</button></div></div>`;
