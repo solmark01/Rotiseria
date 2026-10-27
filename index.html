@@ -336,7 +336,7 @@ function newOrdForm(){
 <label>Fecha</label><input type="date" id="oFecha" value="${today()}">
 <label>Cliente</label>
 <div style="position:relative;margin:4px 0 4px">
-  <input type="search" id="oCliBusq" placeholder="Buscar cliente por nombre o tel..." autocomplete="off" oninput="filtrarCliOrd()" style="margin:0;padding-right:80px">
+  <input type="text" id="oCliBusq" placeholder="Buscar cliente por nombre o tel..." autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" inputmode="text" oninput="filtrarCliOrd()" style="margin:0;padding-right:80px">
   <button class="b w s" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:5px 9px;font-size:12px" onclick="newCliDesdeOrden()">+ Nuevo</button>
 </div>
 <div id="oCliLista" style="max-height:180px;overflow-y:auto;border:1px solid var(--bd);border-radius:10px;margin-bottom:4px;display:none"></div>
@@ -368,19 +368,21 @@ function newOrdForm(){
   addPRow();
 }
 function filtrarCliOrd(){
-  const q=nz(document.getElementById("oCliBusq")?.value||"");
+  const inp=document.getElementById("oCliBusq");
+  const q=nz(inp?.value||"");
   const lista=document.getElementById("oCliLista");
   if(!lista)return;
   if(!q){lista.style.display="none";return;}
   const res=db.clientes.filter(c=>nz(c.nombre).includes(q)||(c.tel&&c.tel.includes(q))).slice(0,12).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   if(!res.length){lista.innerHTML=`<div style="padding:10px 14px;color:var(--mu);font-size:13px">Sin resultados</div>`;lista.style.display="block";return;}
-  lista.innerHTML=res.map(c=>`<div onclick="selecCliOrden('${c.id}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);font-size:14px;font-weight:600">${esc(c.nombre)}<span style="font-size:12px;color:var(--mu);margin-left:8px">${esc(c.tel||"")}</span></div>`).join("");
+  lista.innerHTML=res.map(c=>`<div onmousedown="event.preventDefault();selecCliOrden('${c.id}');" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd);font-size:14px;font-weight:600">${esc(c.nombre)}<span style="font-size:12px;color:var(--mu);margin-left:8px">${esc(c.tel||"")}</span></div>`).join("");
   lista.style.display="block";
 }
 function selecCliOrden(cliId){
   const c=db.clientes.find(c=>c.id===cliId);if(!c)return;
   document.getElementById("oCli").value=cliId;
-  document.getElementById("oCliBusq").value=c.nombre;
+  const inp=document.getElementById("oCliBusq");
+  if(inp){inp.value=c.nombre;inp.blur();}
   document.getElementById("oCliLista").style.display="none";
   document.getElementById("oCliSel").textContent="✔ "+c.nombre+(c.tel?" · "+c.tel:"")+(c.dir?" · "+c.dir:"");
   document.getElementById("oCliSel").style.display="block";
