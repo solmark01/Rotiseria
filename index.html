@@ -161,7 +161,27 @@ function hideFab(){
   const f=document.getElementById("fabBtn");
   if(f)f.style.display="none";
 }
+let appUnlocked=sessionStorage.getItem("rotism_unlocked")==="1";
+async function requestDeviceUnlock(){
+  try{
+    if(!window.PublicKeyCredential){throw new Error("No disponible");}
+    const available=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if(!available){throw new Error("Sin autenticador");}
+    const challenge=crypto.getRandomValues(new Uint8Array(32));
+    const opts={publicKey:{challenge,rp:{name:"El Buen Gusto"},user:{id:new Uint8Array(16),name:"rotism",displayName:"Rotisería"},pubKeyCredParams:[{type:"public-key",alg:-7}],timeout:60000,authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required"},attestation:"none"}};
+    await navigator.credentials.create(opts);
+    appUnlocked=true;sessionStorage.setItem("rotism_unlocked","1");render();
+  }catch(e){
+    alert("No se pudo desbloquear. Se requiere huella, rostro, PIN o patrón del dispositivo.");
+  }
+}
 function render(){
+  if(!appUnlocked){
+    $("#nav").innerHTML="";
+    $("#app").innerHTML=`<div style="text-align:center;margin-top:10vh"><div style="font-size:56px">🔐</div><h1>Desbloquear aplicación</h1><p class="mu">Usá la misma forma de desbloqueo que tu celular (huella, rostro, PIN o patrón)</p><button class="b" onclick="requestDeviceUnlock()">Desbloquear</button><p class="mu" style="margin-top:12px;font-size:12px">Tus datos no se borrarán</p></div>`;
+    hideFab();
+    return;
+  }
   licTick();
   if(PUB&&isLocked()){
     $("#nav").innerHTML="";
@@ -228,7 +248,11 @@ function cardOrd(o){
   const bl=o.estado==="pendiente"?"⏳ Pendiente":o.estado==="listo"?"✅ Listo":"❌ Cancelado";
   const entIcon=o.entrega==="retiro"?"🚶 Retira":"🚐 Mensajero";
   const tot=o.totalPrecio||o.precio*o.cantidad||0;
-  let h=`<div class="c"><div class="row" style="margin-bottom:6px"><div><div style="font-size:10px;color:var(--mu);font-weight:700">${esc(o.nro||"")}${o.fecha!==today()?" · "+fd(o.fecha):""}</div><div style="font-size:15px;font-weight:700">${esc(o.clienteNombre)}</div></div><span class="chip ${bc}">${bl}</span></div>`;
+  const debeCli=db.ordenes.filter(x=>x.clienteId===o.clienteId&&x.estado!=="cancelado").reduce((s,x)=>s+(x.totalPrecio||0),0);
+  const haberCli=db.pagos.filter(p=>p.clienteId===o.clienteId).reduce((s,p)=>s+p.monto,0);
+  const pagoOk=haberCli>=debeCli && debeCli>0;
+  const pagoChip=pagoOk?`<span class="chip ch-gr">✅ Pago recibido</span>`:`<span class="chip ch-rd">⏳ Pendiente de pago</span>`;
+  let h=`<div class="c"><div class="row" style="margin-bottom:6px"><div><div style="font-size:10px;color:var(--mu);font-weight:700">${esc(o.nro||"")}${o.fecha!==today()?" · "+fd(o.fecha):""}</div><div style="font-size:15px;font-weight:700">${esc(o.clienteNombre)}</div></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span class="chip ${bc}">${bl}</span>${pagoChip}</div></div>`;
   h+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">`;
   items.forEach(it=>{h+=`<span class="chip ch-ac">${esc(it.platoNombre)} x${it.cantidad}</span>`;});
   h+=`</div>`;
@@ -278,14 +302,23 @@ function waOrdenChef(id){
   const brand=db.cfg?.brand||{nombre:"Roti SM",emoji:"🍽️"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
   const tot=o.totalPrecio||o.precio*o.cantidad||0;
+  const debeCli=db.ordenes.filter(x=>x.clienteId===o.clienteId&&x.estado!=="cancelado").reduce((s,x)=>s+(x.totalPrecio||0),0);
+  const haberCli=db.pagos.filter(p=>p.clienteId===o.clienteId).reduce((s,p)=>s+p.monto,0);
+  const pagoOk=haberCli>=debeCli && debeCli>0;
   const nl2="\n";
   let msg="*ORDEN DE VIANDA - "+brand.nombre.toUpperCase()+"*"+nl2;
   msg+="*Nro:* "+(o.nro||o.id.toUpperCase())+" | *Fecha:* "+fd(o.fecha)+nl2+nl2;
   msg+="*Cliente:* "+o.clienteNombre+nl2;
-  if(o.clienteDir)msg+="*Dir:* "+o.clienteDir+nl2;
+  if(o.clienteDir)msg+="*Dirección:* "+o.clienteDir+nl2;
   msg+=nl2+"*Platos:*"+nl2;
   items.forEach(it=>{msg+="  - "+it.platoNombre+" x"+it.cantidad+nl2;});
   msg+=nl2+"*Entrega:* "+(o.entrega==="retiro"?"Retira el cliente":"Mensajero")+nl2;
+  if(db.pagos){
+    const pagosCli=db.pagos.filter(p=>p.clienteId===o.clienteId).sort((a,b)=>(b.ts||0)-(a.ts||0));
+    const pagoRec=pagosCli[0];
+    if(pagoRec)msg+="*Forma de pago:* "+(pagoRec.forma==="transferencia"?"Transferencia":"Efectivo")+nl2;
+  }
+  msg+="*Estado de pago:* "+(pagoOk?"Pago recibido":"Pendiente de pago")+nl2;
   if(o.notas)msg+="*Nota:* "+o.notas+nl2;
   msg+="*Total:* "+money(tot);
   const url="https://wa.me/?text="+encodeURIComponent(msg);
@@ -1270,6 +1303,31 @@ function guardarBrand(){
  *  INIT
  * ──────────────────────────────────────────────────────── */
 licInit();load();
+if(!db.platos.length && !db.clientes.length && !db.ordenes.length){
+  const uid2=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  db.platos=[
+    {id:uid2(),nombre:"Milanesa con papas",costo:850,precio:1400,desc:"Clásica"},
+    {id:uid2(),nombre:"Pollo al horno con puré",costo:900,precio:1500,desc:"Con guarnición"},
+    {id:uid2(),nombre:"Tarta de jamón y queso",costo:650,precio:1100,desc:"Porción individual"},
+    {id:uid2(),nombre:"Ensalada César",costo:500,precio:900,desc:"Fresca"},
+    {id:uid2(),nombre:"Ñoquis con tuco",costo:600,precio:1100,desc:"Del día"}
+  ];
+  db.clientes=[
+    {id:uid2(),nombre:"María González",tel:"+5493442555123",dir:"San Martín 456",puntos:150,etiquetas:["Frecuente"],ts:Date.now()},
+    {id:uid2(),nombre:"Carlos López",tel:"+5493442567890",dir:"Belgrano 123",puntos:80,etiquetas:[],ts:Date.now()},
+    {id:uid2(),nombre:"Ana Martínez",tel:"+5493442578901",dir:"Rivadavia 789",puntos:200,etiquetas:["VIP"],ts:Date.now()}
+  ];
+  const c1=db.clientes[0],c2=db.clientes[1],c3=db.clientes[2];
+  const p1=db.platos[0],p2=db.platos[1],p3=db.platos[4],p4=db.platos[2];
+  const t=today();
+  db.ordenes=[
+    {id:uid2(),nro:"VD-100001",fecha:t,clienteId:c1.id,clienteNombre:c1.nombre,clienteTel:c1.tel,clienteDir:c1.dir,items:[{platoId:p1.id,platoNombre:p1.nombre,precio:p1.precio,costo:p1.costo,cantidad:2}],platoNombre:p1.nombre+" x2",precio:p1.precio,costo:p1.costo,cantidad:2,subtotal:p1.precio*2,descPct:0,descMonto:0,totalPrecio:p1.precio*2,totalCosto:p1.costo*2,ts:Date.now()-3600000,notas:"Sin sal",entrega:"mensajero",estado:"pendiente"},
+    {id:uid2(),nro:"VD-100002",fecha:t,clienteId:c2.id,clienteNombre:c2.nombre,clienteTel:c2.tel,clienteDir:c2.dir,items:[{platoId:p2.id,platoNombre:p2.nombre,precio:p2.precio,costo:p2.costo,cantidad:1},{platoId:p4.id,platoNombre:p4.nombre,precio:p4.precio,costo:p4.costo,cantidad:1}],platoNombre:p2.nombre+" x1, "+p4.nombre+" x1",precio:0,costo:0,cantidad:2,subtotal:p2.precio+p4.precio,descPct:0,descMonto:0,totalPrecio:p2.precio+p4.precio,totalCosto:p2.costo+p4.costo,ts:Date.now()-1800000,notas:"",entrega:"retiro",estado:"listo"},
+    {id:uid2(),nro:"VD-100003",fecha:t,clienteId:c3.id,clienteNombre:c3.nombre,clienteTel:c3.tel,clienteDir:c3.dir,items:[{platoId:p3.id,platoNombre:p3.nombre,precio:p3.precio,costo:p3.costo,cantidad:3}],platoNombre:p3.nombre+" x3",precio:p3.precio,costo:p3.costo,cantidad:3,subtotal:p3.precio*3,descPct:0,descMonto:0,totalPrecio:p3.precio*3,totalCosto:p3.costo*3,ts:Date.now()-900000,notas:"Extra salsa",entrega:"mensajero",estado:"pendiente"}
+  ];
+  if(!db.cfg)db.cfg={};db.cfg.brand={emoji:"🍽️",nombre:"El Buen Gusto"};
+  save();
+}
 if(db.cfg?.brand?.nombre)document.title=db.cfg.brand.nombre;
 render();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});

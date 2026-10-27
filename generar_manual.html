@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Generar Manual El Buen Gusto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:system-ui;margin:20px;background:#fdf8f3;color:#1e1a16}
+.card{background:#fff;border:1px solid #e8ddd2;border-radius:12px;padding:16px;max-width:400px;margin:auto;text-align:center}
+button{background:#c0713a;color:#fff;border:0;padding:12px 18px;border-radius:10px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Manual de Usuario - El Buen Gusto</h2>
+<p>Se generará un PDF optimizado para leer en celular (formato A6).</p>
+<button onclick="generar()">Generar y descargar PDF</button>
+<p id="msg" style="color:#2f7a4a"></p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function generar(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:[105,148.5]});
+  const w=105,h=148.5,m=5;
+  let y=m;
+  
+  // Portada
+  doc.setFillColor(192,113,58);doc.rect(0,0,w,45,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);
+  doc.text('EL BUEN GUSTO',w/2,18,{align:'center'});
+  doc.setFontSize(10);doc.text('MANUAL DE USUARIO',w/2,26,{align:'center'});
+  doc.setFontSize(7);doc.text('Rotisería • Viandas • Pedidos',w/2,34,{align:'center'});
+  
+  y=55;doc.setTextColor(30,26,22);doc.setFontSize(9);doc.text('ÍNDICE',m,y);y+=4;
+  doc.setDrawColor(192,113,58);doc.line(m,y,w-m,y);y+=5;
+  doc.setFontSize(7);doc.setFont('helvetica','normal');
+  [['1. Introducción','3'],['2. Navegación','3'],['3. Módulo Órdenes','4'],['4. Módulo Clientes','5'],['5. Módulo Platos','6'],['6. Módulo Informe','7'],['7. Puntos y Premios','7'],['8. Módulo Equipo','8'],['9. Configuración y Datos','8'],['10. Copias de Seguridad','9'],['11. Trucos y Consejos','9']].forEach(([t,p])=>{doc.text(t,m,y);doc.text(p,w-m,y,{align:'right'});y+=3.8});
+  
+  // P2
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('1. INTRODUCCIÓN',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFontSize(7);doc.setFont('helvetica','normal');
+  ['El Buen Gusto es una app para gestionar','pedidos de viandas y rotisería desde el celular.','','Permite llevar órdenes, clientes, cuenta corriente,','platos, informes, puntos y más.','','Los datos se guardan en el celular.','Se puede instalar como app web.'].forEach(l=>{doc.text(l,m,y);y+=3.2});
+  y+=1;doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('2. NAVEGACIÓN',m,y);y+=4;doc.line(m,y,w-m,y);y+=3.5;
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Barra inferior:',m,y);y+=3;doc.setFontSize(6.5);doc.text('Órdenes | Clientes | Platos | Informe | Config',m,y);y+=4;
+  doc.setFontSize(7);doc.setFont('helvetica','bold');doc.text('Crear nuevo:',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Doble clic en pestaña (Órdenes/Clientes/Platos)',m,y);y+=3;doc.text('• O doble clic en el área de esa sección',m,y);
+  
+  // P3
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('3. MÓDULO ÓRDENES',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Vista principal',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Filtros: Todos / Pendientes / Listos / Cancelados',m,y);y+=3;doc.text('• Botón "Orden del día para el chef"',m,y);y+=3;doc.text('• Tarjetas con cliente, platos, entrega, total',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Crear nueva orden',m,y);y+=3;doc.setFont('helvetica','normal');
+  ['1. Doble clic para abrir formulario','2. Seleccionar o crear cliente','3. Agregar uno o más platos','4. Entrega: Mensajero / Retira','5. Descuento % o $ (opcional)','6. Notas para el chef (opcional)','7. Crear Orden'].forEach(s=>{doc.text(s,m,y);y+=2.8});
+  y+=2;doc.setFont('helvetica','bold');doc.text('Acciones por orden',m,y);y+=3;doc.setFont('helvetica','normal');
+  ['• Listo / Volver a pendiente / Cancelar','• Pago | PDF | Imagen','• Comprobante | WA Cliente/Chef','• Eliminar'].forEach(s=>{doc.text(s,m,y);y+=2.8});
+  
+  // P4
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('4. MÓDULO CLIENTES',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Funciones',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Buscar por nombre/teléfono/dirección',m,y);y+=3;doc.text('• Filtrar por etiquetas y Deudores',m,y);y+=3;doc.text('• Doble clic para agregar cliente',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Acciones',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Cuenta Corriente (Debe/Haber/Saldo)',m,y);y+=3;doc.text('• Registrar pago (Efectivo/Transferencia)',m,y);y+=3;doc.text('• Pts - Notificar con imagen',m,y);y+=3;doc.text('• Editar / Eliminar',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Cuenta Corriente',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Rojo=Debe | Verde=A favor | Gris=Al día',m,y);
+  
+  // P5
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('5. MÓDULO PLATOS',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('• Buscar platos',m,y);y+=3;doc.text('• Doble clic para agregar',m,y);y+=3;doc.text('• Muestra costo, precio, margen y ganancia',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Datos',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Nombre, Costo ($), Precio venta ($),',m,y);y+=3;doc.text('Descripción (opcional)',m,y);y+=8;
+  doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('6. MÓDULO INFORME',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('• Períodos: Hoy / Semana / Mes',m,y);y+=3;doc.text('• Venta, Costo, Utilidad, Viandas, Órdenes',m,y);y+=3;doc.text('• Top 5 Platos/Clientes por período y año',m,y);y+=3;doc.text('• Exportar PDF',m,y);
+  
+  // P6
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('7. PUNTOS Y PREMIOS',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Funcionamiento',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Se suman al crear orden',m,y);y+=3;doc.text('• Configurable puntos por $1',m,y);y+=3;doc.text('• Ranking con medallas',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Premios y canjes',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Crear premios con puntos necesarios',m,y);y+=3;doc.text('• Canjear desde cliente/ranking',m,y);y+=3;doc.text('• Descuenta puntos al canjear',m,y);y+=3;doc.text('• Historial de canjes',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Notificar puntos',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Genera imagen para WhatsApp',m,y);
+  
+  // P7
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('8. MÓDULO EQUIPO',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('• Agregar Chefs/Vendedores con tel',m,y);y+=3;doc.text('• WhatsApp directo',m,y);y+=3;doc.text('• Útil para enviar orden del día',m,y);y+=8;
+  doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('9. CONFIGURACIÓN Y DATOS',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Secciones',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Licencia • Backup • Puntos • Equipo',m,y);y+=3;doc.text('Apariencia • Contactos',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Apariencia',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Cambiar emoji y nombre del restaurante',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Contactos',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('• Importar .VCF desde Google Contacts',m,y);y+=3;doc.text('• Importar archivo VCF del celular',m,y);
+  
+  // P8
+  doc.addPage();y=m;doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('10. COPIAS DE SEGURIDAD',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('Crear backup',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Config > Datos > Descargar copia completa',m,y);y+=3;doc.text('Guarda todo: clientes, platos, órdenes,',m,y);y+=3;doc.text('pagos, puntos, premios, configuración',m,y);y+=5;
+  doc.setFont('helvetica','bold');doc.text('Restaurar',m,y);y+=3;doc.setFont('helvetica','normal');doc.text('Elegir .JSON desde Descargas',m,y);y+=3;doc.setFillColor(192,69,58);doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.text('¡Importante! Reemplaza TODOS los datos',m,y);doc.setFillColor(30,26,22);y+=3;doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Hacer backup antes de restaurar',m,y);y+=8;
+  doc.setFillColor(192,113,58);doc.rect(0,0,w,12,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('11. TRUCOS Y CONSEJOS',m,8);
+  doc.setTextColor(30,26,22);y=18;doc.setFont('helvetica',6.8);
+  ['• Doble clic = crear rápido','• Orden del día para el chef','• PDF/imagen de comprobante','• Controlar deuda en Cuenta Corriente','• Usar puntos para fidelizar','• Importar contactos .VCF','• Hacer backup semanal','• Instalar app en inicio','• Marcar Pendiente/Listo/Cancelado'].forEach(t=>{doc.text(t,m,y);y+=3});
+  y+=3;doc.setFont('helvetica',6);doc.setTextColor(138,126,114);doc.text('El Buen Gusto • Manual optimizado para celular',w/2,y,{align:'center'});
+  
+  doc.save('Manual_Usuario_El_Buen_Gusto.pdf');
+  document.getElementById('msg').textContent='PDF generado y descargado';
+}
+</script>
+</body>
+</html>
