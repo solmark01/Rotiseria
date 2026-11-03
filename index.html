@@ -115,7 +115,7 @@ const banner0=()=>PUB&&left()>=0&&left()<=5?`<div class="c info am">⏳ Tu suscr
 let db={clientes:[],platos:[],ordenes:[],pagos:[],canjes:[],empleados:[],premios:[
   {id:"p1",nombre:"Vianda gratis",puntos:100,desc:"Del menú del día"},
   {id:"p2",nombre:"10% de descuento",puntos:50,desc:"En tu próxima compra"}
-],cfgPuntos:{puntoPorPeso:1},contactosImportados:false};
+],cfgPuntos:{puntoPorPeso:1},contactosImportados:false,cfg:{brand:{emoji:"🍽️",nombre:"El Buen Gusto"}}};
 const SK="rotism_v1";
 function save(){try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){toast("⚠ No se pudo guardar")}}
 function load(){try{const d=JSON.parse(localStorage.getItem(SK));if(d)db=Object.assign(db,d)}catch(e){}
@@ -132,6 +132,7 @@ let tab="ord",orFiltro="todos",descTipo="pct",entrega="mensajero",formaPago="efe
 let selYear=new Date().getFullYear(),selMonth=new Date().getMonth(),infPeriodo="dia";
 let busqCli="",soloDeudores=false,busqPla="",platoRowCount=0;
 let compId=null,canjeCliId=null;
+let resumenFecha=today();
 const tabs=[["ord","🍽️","Ordenes"],["cli","👥","Clientes"],["pla","🥘","Platos"],["inf","📊","Informe"],["dat","⚙️","Config"]];
 
 /* ── HELPERS ───────────────────────────────────────────── */
@@ -254,7 +255,11 @@ function cardOrd(o){
   const pagoChip=pagoOk?`<span class="chip ch-gr">✅ Pago recibido</span>`:`<span class="chip ch-rd">⏳ Pendiente de pago</span>`;
   let h=`<div class="c"><div class="row" style="margin-bottom:6px"><div><div style="font-size:10px;color:var(--mu);font-weight:700">${esc(o.nro||"")}${o.fecha!==today()?" · "+fd(o.fecha):""}</div><div style="font-size:15px;font-weight:700">${esc(o.clienteNombre)}</div></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span class="chip ${bc}">${bl}</span>${pagoChip}</div></div>`;
   h+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">`;
-  items.forEach(it=>{h+=`<span class="chip ch-ac">${esc(it.platoNombre)} x${it.cantidad}</span>`;});
+  items.forEach(it=>{
+    const qty=it.porPeso?(it.pesoKg||it.cantidad):it.cantidad;
+    const qtxt=it.porPeso?qty+" kg":qty;
+    h+=`<span class="chip ch-ac">${esc(it.platoNombre)} x${qtxt}</span>`;
+  });
   h+=`</div>`;
   h+=`<div class="mu" style="line-height:1.6">`;
   if(o.clienteDir)h+=`📍 ${esc(o.clienteDir)}<br>`;
@@ -407,30 +412,39 @@ function guardarCliDesdeOrden(){
   toast("Cliente creado");
 }
 
-function addPRow(preId,preCant){
+function addPRow(preId,preCant,prePeso){
   pRowCount++;
   const idx=pRowCount;
   const cont=document.getElementById("platosC");
   if(!cont)return;
   const preP=preId?db.platos.find(p=>p.id===preId):null;
+  const porPeso=preP?.porPeso;
   const div=document.createElement("div");div.style.cssText="margin-bottom:8px;border:1px solid var(--bd);border-radius:10px;padding:9px 11px;background:var(--bg)";
   div.id="pRow"+idx;
   div.innerHTML=`
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input type="search" id="rBusq${idx}" placeholder="Buscar plato..." autocomplete="off" oninput="filtrarPlatoRow(${idx})" value="${esc(preP?preP.nombre:'')}" style="flex:1;min-width:120px;margin:0">
-      <input type="number" id="rCnt${idx}" value="${preCant||1}" min="1" oninput="updSub${idx}()" style="width:56px;margin:0;text-align:center;flex-shrink:0">
+      <input type="number" id="rCnt${idx}" value="${porPeso?(prePeso||0.5):(preCant||1)}" min="${porPeso?0.1:1}" step="${porPeso?'0.01':'1'}" oninput="updSub${idx}()" style="width:${porPeso?'70px':'56px'};margin:0;text-align:center;flex-shrink:0" placeholder="${porPeso?'kg':'cant.'}">
       <button class="rm" onclick="document.getElementById('pRow${idx}').remove();calcDesc()">×</button>
     </div>
+    <div id="rPesoLbl${idx}" style="font-size:11px;color:var(--mu);margin-top:2px;display:${porPeso?'block':'none'}">Peso en kilogramos</div>
     <div id="rLista${idx}" style="max-height:150px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;margin-top:5px;display:none"></div>
     <input type="hidden" id="rPId${idx}" value="${preId||''}">
-    <div class="plato-sub" id="rSub${idx}">${preP?"Subtotal: "+money(preP.precio*(preCant||1)):''}</div>`;
+    <input type="hidden" id="rPPeso${idx}" value="${porPeso?'1':''}">
+    <div class="plato-sub" id="rSub${idx}">${preP?(porPeso?"Subtotal: "+money((preP.precioKg||preP.precio)*(prePeso||0.5)):"Subtotal: "+money(preP.precio*(preCant||1))):''}</div>`;
   cont.appendChild(div);
   window["updSub"+idx]=function(){
     const pId=document.getElementById("rPId"+idx)?.value;
     const p=db.platos.find(p=>p.id===pId);
-    const c=parseInt(document.getElementById("rCnt"+idx)?.value)||1;
+    const porPeso=document.getElementById("rPPeso"+idx)?.value==="1";
+    const c=porPeso?parseFloat(document.getElementById("rCnt"+idx)?.value)||0:parseInt(document.getElementById("rCnt"+idx)?.value)||1;
     const sub=document.getElementById("rSub"+idx);
-    if(sub)sub.textContent=p?"Subtotal: "+money(p.precio*c):"";
+    if(sub){
+      if(p){
+        const price=porPeso?(p.precioKg||p.precio):p.precio;
+        sub.textContent="Subtotal: "+money(price*c);
+      }else sub.textContent="";
+    }
     calcDesc();
   };
   window["updSub"+idx]();
@@ -448,7 +462,16 @@ function filtrarPlatoRow(idx){
 function selecPlatoRow(idx,pId){
   const p=db.platos.find(p=>p.id===pId);if(!p)return;
   const hid=document.getElementById("rPId"+idx);const busq=document.getElementById("rBusq"+idx);const lista=document.getElementById("rLista"+idx);
+  const pp=document.getElementById("rPPeso"+idx);
+  const cnt=document.getElementById("rCnt"+idx);
+  const lbl=document.getElementById("rPesoLbl"+idx);
   if(hid)hid.value=pId;if(busq)busq.value=p.nombre;if(lista)lista.style.display="none";
+  if(pp)pp.value=p.porPeso?"1":"";
+  if(cnt){
+    if(p.porPeso){cnt.value=0.5;cnt.min=0.1;cnt.step=0.01;cnt.style.width="70px";cnt.placeholder="kg";}
+    else{cnt.value=1;cnt.min=1;cnt.step=1;cnt.style.width="56px";cnt.placeholder="cant.";}
+  }
+  if(lbl)lbl.style.display=p.porPeso?"block":"none";
   if(window["updSub"+idx])window["updSub"+idx]();
 }
 function getItemsOrden(){
@@ -457,8 +480,13 @@ function getItemsOrden(){
   let idx=1;
   while(document.getElementById("pRow"+idx)){
     const pId=document.getElementById("rPId"+idx)?.value;
-    const cant=parseInt(document.getElementById("rCnt"+idx)?.value)||1;
-    if(pId){const p=db.platos.find(p=>p.id===pId);if(p)items.push({platoId:p.id,platoNombre:p.nombre,precio:p.precio,costo:p.costo||0,cantidad:cant});}
+    const porPeso=document.getElementById("rPPeso"+idx)?.value==="1";
+    const cant=porPeso?parseFloat(document.getElementById("rCnt"+idx)?.value)||0:parseInt(document.getElementById("rCnt"+idx)?.value)||1;
+    if(pId){const p=db.platos.find(p=>p.id===pId);if(p){
+      const precioUnit=porPeso?(p.precioKg||p.precio):p.precio;
+      const costoUnit=porPeso?(p.costoKg||p.costo):p.costo;
+      items.push({platoId:p.id,platoNombre:p.nombre,precio:precioUnit,costo:costoUnit||0,cantidad:cant,porPeso:!!porPeso,pesoKg:porPeso?cant:undefined});
+    }}
     idx++;
   }
   return items;
@@ -469,9 +497,10 @@ function getSubtotal(){
   let s=0,idx=1;
   while(document.getElementById("pRow"+idx)){
     const pId=document.getElementById("rPId"+idx)?.value;
-    const c=parseInt(document.getElementById("rCnt"+idx)?.value)||1;
+    const porPeso=document.getElementById("rPPeso"+idx)?.value==="1";
+    const c=porPeso?parseFloat(document.getElementById("rCnt"+idx)?.value)||0:parseInt(document.getElementById("rCnt"+idx)?.value)||1;
     const p=db.platos.find(p=>p.id===pId);
-    if(p)s+=p.precio*c;idx++;
+    if(p){const price=porPeso?(p.precioKg||p.precio):p.precio;s+=price*c;}idx++;
   }
   return s;
 }
@@ -617,8 +646,15 @@ function renderPla(){
   html+=`<div class="mu" style="margin-bottom:8px">${db.platos.length} platos${busqPla?" · "+lista.length+" resultados":""} · Doble clic para agregar</div>`;
   if(!lista.length)html+=`<div class="c" style="text-align:center;color:var(--mu);padding:24px 0">${busqPla?'Sin resultados para "'+esc(busqPla)+'"':"Sin platos. Doble clic en Platos o aquí para agregar."}</div>`;
   else lista.forEach(p=>{
-    const m=p.costo>0?((p.precio-p.costo)/p.precio*100).toFixed(0)+"%":"—";
-    html+=`<div class="c"><div class="row" style="margin-bottom:4px"><div style="flex:1"><div style="font-size:15px;font-weight:700">${esc(p.nombre)}</div>${p.desc?`<div class="mu">${esc(p.desc)}</div>`:""}</div></div><div style="display:flex;gap:10px;font-size:13px;margin:6px 0"><span class="mu">Costo <b>${money(p.costo||0)}</b></span><span style="color:var(--gr);font-weight:700">Venta ${money(p.precio)}</span><span class="mu">Margen <b>${m}</b></span></div><div style="display:flex;gap:5px"><button class="b w s" onclick="editPla('${p.id}')">Editar</button><button class="b w" style="background:#fce;color:var(--rd);border:0" onclick="delPla('${p.id}')">Eliminar</button></div></div>`;
+    if(p.porPeso){
+      const c=p.costoKg!=null?p.costoKg:p.costo;
+      const pr=p.precioKg!=null?p.precioKg:p.precio;
+      const m=c>0?((pr-c)/pr*100).toFixed(0)+"%":"—";
+      html+=`<div class="c"><div class="row" style="margin-bottom:4px"><div style="flex:1"><div style="font-size:15px;font-weight:700">${esc(p.nombre)}</div>${p.desc?`<div class="mu">${esc(p.desc)}</div>`:""}<div class="mu" style="font-size:11px">Por peso (kg)</div></div></div><div style="display:flex;gap:10px;font-size:13px;margin:6px 0;flex-wrap:wrap"><span class="mu">Costo/kg <b>${money(c||0)}</b></span><span style="color:var(--gr);font-weight:700">Venta/kg ${money(pr)}</span><span class="mu">Margen <b>${m}</b></span></div><div style="display:flex;gap:5px"><button class="b w s" onclick="editPla('${p.id}')">Editar</button><button class="b w" style="background:#fce;color:var(--rd);border:0" onclick="delPla('${p.id}')">Eliminar</button></div></div>`;
+    }else{
+      const m=p.costo>0?((p.precio-p.costo)/p.precio*100).toFixed(0)+"%":"—";
+      html+=`<div class="c"><div class="row" style="margin-bottom:4px"><div style="flex:1"><div style="font-size:15px;font-weight:700">${esc(p.nombre)}</div>${p.desc?`<div class="mu">${esc(p.desc)}</div>`:""}</div></div><div style="display:flex;gap:10px;font-size:13px;margin:6px 0"><span class="mu">Costo <b>${money(p.costo||0)}</b></span><span style="color:var(--gr);font-weight:700">Venta ${money(p.precio)}</span><span class="mu">Margen <b>${m}</b></span></div><div style="display:flex;gap:5px"><button class="b w s" onclick="editPla('${p.id}')">Editar</button><button class="b w" style="background:#fce;color:var(--rd);border:0" onclick="delPla('${p.id}')">Eliminar</button></div></div>`;
+    }
   });
   $("#app").innerHTML=html;
 }
@@ -626,20 +662,52 @@ function newPlaForm(id){
   const p=id?db.platos.find(p=>p.id===id):null;
   sh(`<div class="hdl"></div><div class="row"><b>${p?"Editar Plato":"Nuevo Plato"}</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div>
 <label>Nombre del plato</label><input type="text" id="pNom" value="${esc(p?.nombre||"")}" placeholder="Ej: Milanesa con ensalada">
-<div class="grid2"><div><label>Costo ($)</label><input type="number" id="pCosto" value="${p?.costo||0}" placeholder="0" step="0.01" oninput="calcMgn()"></div><div><label>Precio venta ($)</label><input type="number" id="pPrecio" value="${p?.precio||""}" placeholder="0" step="0.01" oninput="calcMgn()"></div></div>
+<label>Tipo de venta</label>
+<div class="seg" id="pTipoSeg"><button class="${p?.porPeso?"":"on"}" onclick="setPlaTipo('unid',this)">Por unidad</button><button class="${p?.porPeso?"on":""}" onclick="setPlaTipo('peso',this)">Por peso (kg)</button></div>
+<input type="hidden" id="pPorPeso" value="${p?.porPeso?"1":""}">
+<div id="pUnid" style="display:${p?.porPeso?"none":"block"}"><div class="grid2"><div><label>Costo ($)</label><input type="number" id="pCosto" value="${p?.costo||0}" placeholder="0" step="0.01" oninput="calcMgn()"></div><div><label>Precio venta ($)</label><input type="number" id="pPrecio" value="${p?.precio||""}" placeholder="0" step="0.01" oninput="calcMgn()"></div></div></div>
+<div id="pPeso" style="display:${p?.porPeso?"block":"none"}"><div class="grid2"><div><label>Costo por kg ($)</label><input type="number" id="pCostoKg" value="${p?.costoKg||0}" placeholder="0" step="0.01" oninput="calcMgn()"></div><div><label>Precio por kg ($)</label><input type="number" id="pPrecioKg" value="${p?.precioKg||""}" placeholder="0" step="0.01" oninput="calcMgn()"></div></div></div>
 <div id="pMgn"></div>
 <label>Descripción (opcional)</label><input type="text" id="pDesc" value="${esc(p?.desc||"")}" placeholder="Ej: incluye postre">
 <button class="b" onclick="guardarPla('${p?.id||""}')">Guardar</button>`);
 }
-function calcMgn(){const c=parseFloat(document.getElementById("pCosto")?.value)||0,p=parseFloat(document.getElementById("pPrecio")?.value)||0;const b=document.getElementById("pMgn");if(!b)return;b.innerHTML=c>0&&p>0?`<div class="info gr" style="margin-bottom:6px">Margen: ${((p-c)/p*100).toFixed(1)}% · Ganancia: ${money(p-c)}</div>`:""}
+function setPlaTipo(v,btn){
+  document.querySelectorAll(".sh #pTipoSeg button").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+  document.getElementById("pPorPeso").value=v==="peso"?"1":"";
+  document.getElementById("pUnid").style.display=v==="peso"?"none":"block";
+  document.getElementById("pPeso").style.display=v==="peso"?"block":"none";
+  calcMgn();
+}
+function calcMgn(){
+  const porPeso=document.getElementById("pPorPeso")?.value==="1";
+  const b=document.getElementById("pMgn");if(!b)return;
+  if(porPeso){
+    const c=parseFloat(document.getElementById("pCostoKg")?.value)||0,p=parseFloat(document.getElementById("pPrecioKg")?.value)||0;
+    b.innerHTML=c>0&&p>0?`<div class="info gr" style="margin-bottom:6px">Margen: ${((p-c)/p*100).toFixed(1)}% · Ganancia: ${money(p-c)}/kg</div>`:"";
+  }else{
+    const c=parseFloat(document.getElementById("pCosto")?.value)||0,p=parseFloat(document.getElementById("pPrecio")?.value)||0;
+    b.innerHTML=c>0&&p>0?`<div class="info gr" style="margin-bottom:6px">Margen: ${((p-c)/p*100).toFixed(1)}% · Ganancia: ${money(p-c)}</div>`:"";
+  }
+}
 function guardarPla(id){
   const nombre=document.getElementById("pNom")?.value.trim();
-  const costo=parseFloat(document.getElementById("pCosto")?.value)||0;
-  const precio=parseFloat(document.getElementById("pPrecio")?.value)||0;
+  const porPeso=document.getElementById("pPorPeso")?.value==="1";
   const desc=document.getElementById("pDesc")?.value.trim()||"";
-  if(!nombre){alert("Ingresá el nombre");return;}if(!precio){alert("Ingresá el precio");return;}
-  if(id){const p=db.platos.find(p=>p.id===id);if(p){p.nombre=nombre;p.costo=costo;p.precio=precio;p.desc=desc;}}
-  else db.platos.push({id:uid(),nombre,costo,precio,desc,ts:Date.now()});
+  if(!nombre){alert("Ingresá el nombre");return;}
+  if(porPeso){
+    const costoKg=parseFloat(document.getElementById("pCostoKg")?.value)||0;
+    const precioKg=parseFloat(document.getElementById("pPrecioKg")?.value)||0;
+    if(!precioKg){alert("Ingresá el precio por kg");return;}
+    if(id){const p=db.platos.find(p=>p.id===id);if(p){p.nombre=nombre;p.porPeso=true;p.costoKg=costoKg;p.precioKg=precioKg;p.costo=costoKg;p.precio=precioKg;p.desc=desc;}}
+    else db.platos.push({id:uid(),nombre,costo:costoKg,precio:precioKg,costoKg,precioKg,porPeso:true,desc,ts:Date.now()});
+  }else{
+    const costo=parseFloat(document.getElementById("pCosto")?.value)||0;
+    const precio=parseFloat(document.getElementById("pPrecio")?.value)||0;
+    if(!precio){alert("Ingresá el precio");return;}
+    if(id){const p=db.platos.find(p=>p.id===id);if(p){p.nombre=nombre;p.porPeso=false;p.costo=costo;p.precio=precio;p.costoKg=undefined;p.precioKg=undefined;p.desc=desc;}}
+    else db.platos.push({id:uid(),nombre,costo,precio,porPeso:false,desc,ts:Date.now()});
+  }
   closeSh();rf();toast("Plato guardado");
 }
 function editPla(id){newPlaForm(id)}
@@ -649,7 +717,7 @@ function delPla(id){if(!confirm("¿Eliminar este plato?"))return;db.platos=db.pl
  *  INFORME
  * ──────────────────────────────────────────────────────── */
 function getOrds(p){
-  if(p==="dia")return db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado");
+  if(p==="dia"){const f=window.infDiaFecha||today();return db.ordenes.filter(o=>o.fecha===f&&o.estado!=="cancelado");}
   if(p==="semana"){const w=getWeek();return db.ordenes.filter(o=>inRange(o.fecha,w.from,w.to)&&o.estado!=="cancelado");}
   const mr=getMonthFor(selYear,selMonth);return db.ordenes.filter(o=>inRange(o.fecha,mr.from,mr.to)&&o.estado!=="cancelado");
 }
@@ -669,7 +737,8 @@ function top5HTML(items,label,icon){
   h+=`</div>`;return h;
 }
 function renderInf(){
-  const fab=document.querySelector(".fab");if(fab)fab.style.display="none";
+  hideFab();
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const ords=getOrds(infPeriodo);
   let label="";
   if(infPeriodo==="dia")label=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -679,9 +748,11 @@ function renderInf(){
   const tve=ords.reduce((s,o)=>s+(o.totalPrecio||o.precio*o.cantidad||0),0);
   const tc=ords.reduce((s,o)=>s+(o.totalCosto||o.costo*o.cantidad||0),0);
   const ut=tve-tc;
+  if(!window.infDiaFecha)window.infDiaFecha=today();
   let html=`<h1>📊 Informe</h1>`;
-  html+=`<div class="seg"><button class="${infPeriodo==="dia"?"on":""}" onclick="infPeriodo='dia';renderInf()">Hoy</button><button class="${infPeriodo==="semana"?"on":""}" onclick="infPeriodo='semana';renderInf()">Semana</button><button class="${infPeriodo==="mes"?"on":""}" onclick="infPeriodo='mes';selYear=new Date().getFullYear();selMonth=new Date().getMonth();renderInf()">Mes</button></div>`;
-  if(infPeriodo==="mes"){html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px"><button class="b w s" onclick="selMonth--;if(selMonth<0){selMonth=11;selYear--}renderInf()">◀</button><span style="font-size:14px;font-weight:700;min-width:140px;text-align:center;text-transform:capitalize">${label}</span><button class="b w s" onclick="selMonth++;if(selMonth>11){selMonth=0;selYear++}renderInf()">▶</button></div>`;}
+  html+=`<div class="seg"><button class="${infPeriodo==="dia"?"on":""}" onclick="infPeriodo='dia';window.infDiaFecha=today();renderInf()">Día</button><button class="${infPeriodo==="semana"?"on":""}" onclick="infPeriodo='semana';renderInf()">Semana</button><button class="${infPeriodo==="mes"?"on":""}" onclick="infPeriodo='mes';selYear=new Date().getFullYear();selMonth=new Date().getMonth();renderInf()">Mes</button></div>`;
+  if(infPeriodo==="dia"){html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px"><button class="b w s" onclick="window.infDiaFecha=addD(window.infDiaFecha||today(),-1);renderInf()">◀</button><span style="font-size:14px;font-weight:700;min-width:160px;text-align:center;text-transform:capitalize">${new Date((window.infDiaFecha||today())+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span><button class="b w s" onclick="window.infDiaFecha=addD(window.infDiaFecha||today(),1);renderInf()">▶</button></div>`;}
+  else if(infPeriodo==="mes"){html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px"><button class="b w s" onclick="selMonth--;if(selMonth<0){selMonth=11;selYear--}renderInf()">◀</button><span style="font-size:14px;font-weight:700;min-width:140px;text-align:center;text-transform:capitalize">${label}</span><button class="b w s" onclick="selMonth++;if(selMonth>11){selMonth=0;selYear++}renderInf()">▶</button></div>`;}
   else html+=`<div style="text-align:center;font-size:13px;color:var(--mu);text-transform:capitalize;margin-bottom:12px">${label}</div>`;
   html+=`<div class="grid2" style="margin-bottom:8px"><div class="c" style="text-align:center"><div class="mu">Viandas</div><div class="big grn">${tv}</div></div><div class="c" style="text-align:center"><div class="mu">Órdenes</div><div class="big">${ords.length}</div></div><div class="c" style="text-align:center"><div class="mu">Total venta</div><div class="big" style="font-size:16px">${money(tve)}</div></div><div class="c" style="text-align:center"><div class="mu">Total costo</div><div class="big" style="font-size:16px">${money(tc)}</div></div></div>`;
   html+=`<div class="c" style="text-align:center;border-color:${ut>=0?"var(--gr)":"var(--rd)"}"><div class="mu">Utilidad neta</div><div class="big" style="font-size:24px;color:${ut>=0?"var(--gr)":"var(--rd)"}">${money(ut)}</div></div>`;
@@ -692,7 +763,6 @@ function renderInf(){
   html+=top5HTML(getTop5Platos(ordsAnio),"Top platos — Año "+new Date().getFullYear(),"📅");
   html+=top5HTML(getTop5Clientes(ords),"Top clientes — "+periodoLabel,"👥");
   html+=top5HTML(getTop5Clientes(ordsAnio),"Top clientes — Año "+new Date().getFullYear(),"🏆");
-  // detalle
   const pm={};ords.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad,precio:o.precio}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]={q:0,t:0};pm[it.platoNombre].q+=it.cantidad;pm[it.platoNombre].t+=it.precio*it.cantidad;});});
   const dp=Object.keys(pm).map(k=>({n:k,...pm[k]})).sort((a,b)=>b.q-a.q);
   if(dp.length){html+=`<h2>Detalle por plato</h2><div class="c">`;dp.forEach(e=>{html+=`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--bd)"><span style="font-size:13px;font-weight:600">${esc(e.n)}</span><div style="text-align:right"><div style="font-size:13px;font-weight:700;color:var(--gr)">${e.q} unid.</div><div class="mu">${money(e.t)}</div></div></div>`;});html+=`</div>`;}
@@ -700,48 +770,52 @@ function renderInf(){
   $("#app").innerHTML=html;
 }
 function exportInfPDF(){
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const ords=getOrds(infPeriodo);
   const tv=ords.reduce((s,o)=>s+(o.totalCant||o.cantidad||0),0);
   const tve=ords.reduce((s,o)=>s+(o.totalPrecio||o.precio*o.cantidad||0),0);
   const tc=ords.reduce((s,o)=>s+(o.totalCosto||o.costo*o.cantidad||0),0);
   let label="";
-  if(infPeriodo==="dia")label=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  if(infPeriodo==="dia"){const f=window.infDiaFecha||today();label=new Date(f+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});}
   else if(infPeriodo==="semana"){const w=getWeek();label="Semana "+fmtDate(w.from)+" al "+fmtDate(w.to);}
   else{const ml=new Date(selYear,selMonth,1).toLocaleDateString("es-AR",{month:"long",year:"numeric"});label=ml.charAt(0).toUpperCase()+ml.slice(1);}
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
   const W=210,mg=15;let y=mg;
-  doc.setFillColor(192,113,58);doc.rect(0,0,W,32,"F");
+  doc.setFillColor(30,30,30);doc.rect(0,0,W,32,"F");
   doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont("helvetica","bold");
-  doc.text("EL BUEN GUSTO — INFORME",mg,12);
+  doc.text(brand.nombre.toUpperCase()+" — INFORME",mg,12);
   doc.setFontSize(9);doc.setFont("helvetica","normal");
   doc.text(label.charAt(0).toUpperCase()+label.slice(1),mg,21);doc.text(new Date().toLocaleString("es-AR"),W-mg,21,{align:"right"});y=42;
-  doc.setFillColor(250,238,222);doc.roundedRect(mg,y,W-mg*2,26,3,3,"F");
-  doc.setTextColor(192,113,58);doc.setFontSize(10);doc.setFont("helvetica","bold");
-  doc.text("Viandas: "+tv,mg+4,y+9);doc.text("Órdenes: "+ords.length,mg+40,y+9);doc.text("Venta: "+money(tve),mg+76,y+9);doc.text("Costo: "+money(tc),mg+4,y+20);
-  const ut=tve-tc;doc.setTextColor(ut>=0?47:192,ut>=0?122:67,ut>=0?74:58);doc.text("Utilidad: "+money(ut),mg+40,y+20);y+=34;
+  doc.setDrawColor(200,200,200);doc.setLineWidth(0.4);doc.rect(mg,y,W-mg*2,26);
+  doc.setTextColor(60,60,60);doc.setFontSize(9);doc.setFont("helvetica","bold");
+  doc.text("Viandas: "+tv,mg+4,y+9);doc.text("Órdenes: "+ords.length,mg+40,y+9);doc.text("Venta: "+money(tve),mg+80,y+9);doc.text("Costo: "+money(tc),mg+4,y+20);
+  const ut=tve-tc;doc.setTextColor(ut>=0?40:160,ut>=0?120:40,ut>=0?80:40);doc.text("Utilidad: "+money(ut),mg+40,y+20);y+=34;
   const top=getTop5Platos(ords);
-  if(top.length){doc.setTextColor(100,80,60);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("TOP 5 PLATOS",mg,y);y+=5;doc.setDrawColor(192,113,58);doc.setLineWidth(0.4);doc.line(mg,y,W-mg,y);y+=6;
-  const mx=top[0].q||1;top.forEach((e,i)=>{doc.setTextColor(30,26,22);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("#"+(i+1)+" "+e.n,mg+2,y);doc.setTextColor(47,122,74);doc.text("x"+e.q+"  "+money(e.t),W-mg,y,{align:"right"});doc.setFillColor(220,240,228);doc.rect(mg+2,y+2,((W-mg*2-4)*e.q/mx),4,"F");y+=13;});y+=4;}
-  doc.setTextColor(140,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("El Buen Gusto — "+new Date().toLocaleString("es-AR"),W/2,y,{align:"center"});
+  if(top.length){doc.setTextColor(40,40,40);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("TOP 5 PLATOS",mg,y);y+=5;doc.setDrawColor(150,150,150);doc.setLineWidth(0.4);doc.line(mg,y,W-mg,y);y+=6;
+  const mx=top[0].q||1;top.forEach((e,i)=>{doc.setTextColor(30,30,30);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text("#"+(i+1)+" "+e.n,mg+2,y);doc.setTextColor(60,60,60);doc.text("x"+e.q+"  "+money(e.t),W-mg,y,{align:"right"});doc.setDrawColor(180,180,180);doc.rect(mg+2,y+2,((W-mg*2-4)),2);doc.setFillColor(120,120,120);doc.rect(mg+2,y+2,((W-mg*2-4)*e.q/mx),2,"F");y+=13;});y+=4;}
+  const brandf=db.cfg?.brand||{nombre:"El Buen Gusto"};
+  doc.setTextColor(120,120,120);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(brandf.nombre+" — "+new Date().toLocaleString("es-AR"),W/2,y,{align:"center"});
   doc.save("informe-bgusto-"+today()+".pdf");toast("Informe PDF generado");
 }
 
 /* ──────────────────────────────────────────────────────── *
  *  HISTORIAL + PDF / IMAGEN
  * ──────────────────────────────────────────────────────── */
-function abrirPDFDia(){
-  const hoy=db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
+function abrirPDFDia(fecha){
+  if(!fecha)fecha=resumenFecha||today();
+  resumenFecha=fecha;
+  const hoy=db.ordenes.filter(o=>o.fecha===fecha&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
   const pm={};hoy.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]=0;pm[it.platoNombre]+=it.cantidad;});});
   const tv=hoy.reduce((s,o)=>s+(o.totalCant||o.cantidad||0),0);
-  if(!hoy.length){sh(`<div class="hdl"></div><p class="mu" style="text-align:center;padding:24px">Sin órdenes activas hoy.</p>`);return;}
+  if(!hoy.length){sh(`<div class="hdl"></div><div class="row"><b>Orden del día — Chef</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div><div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px"><button class="b w s" onclick="closeSh();abrirPDFDia('${addD(fecha,-1)}')">◀</button><div style="font-weight:700">${fd(fecha)}</div><button class="b w s" onclick="closeSh();abrirPDFDia('${addD(fecha,1)}')">▶</button></div><p class="mu" style="text-align:center;padding:24px">Sin órdenes activas en esta fecha.</p>`);return;}
   let html=`<div class="hdl"></div><div class="row"><b>Orden del día — Chef</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div>`;
+  html+=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px"><button class="b w s" onclick="closeSh();abrirPDFDia('${addD(fecha,-1)}')">◀</button><div style="font-weight:700">${fd(fecha)}</div><button class="b w s" onclick="closeSh();abrirPDFDia('${addD(fecha,1)}')">▶</button></div>`;
   html+=`<div class="info gr" style="margin-bottom:10px">${hoy.length} órdenes · ${tv} viandas</div>`;
-  hoy.forEach(o=>{const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];html+=`<div class="c" style="padding:10px 12px;margin-bottom:7px"><div style="font-size:14px;font-weight:700">${esc(o.clienteNombre)}</div><div class="mu">${items.map(it=>esc(it.platoNombre)+" x"+it.cantidad).join(" · ")}${o.notas?" · "+esc(o.notas):""}${o.entrega==="retiro"?" · Retira":"  · Mensajero"}</div><div style="color:var(--gr);font-weight:700">${money(o.totalPrecio||o.precio*o.cantidad||0)}</div></div>`;});
+  hoy.forEach(o=>{const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];const dir=o.clienteDir?`<div style="font-size:12px;color:var(--mu)">📍 ${esc(o.clienteDir)}</div>`:"";html+=`<div class="c" style="padding:10px 12px;margin-bottom:7px"><div style="font-size:14px;font-weight:700">${esc(o.clienteNombre)}</div>${dir}<div class="mu">${items.map(it=>{const qty=it.porPeso?(it.pesoKg||it.cantidad):it.cantidad;const qtxt=it.porPeso?qty+" kg":qty;return esc(it.platoNombre)+" x"+qtxt;}).join(" · ")}${o.notas?" · "+esc(o.notas):""}${o.entrega==="retiro"?" · Retira":" · Mensajero"}</div><div style="color:var(--gr);font-weight:700">${money(o.totalPrecio||o.precio*o.cantidad||0)}</div></div>`;});
   html+=`<h2>Resumen</h2>`;Object.keys(pm).sort((a,b)=>pm[b]-pm[a]).forEach(k=>{html+=`<div class="row" style="padding:5px 0;border-bottom:1px solid var(--bd)"><span>${esc(k)}</span><span class="chip ch-gr">x${pm[k]}</span></div>`;});
-  // Chef WA button
   const chefs2=db.empleados?db.empleados.filter(e=>e.rol==="chef"):[];
-  const chefWA=chefs2.length===1?`<button class="b s" onclick="waOrdenDiaChef('${chefs2[0].tel}')">💬 WA Chef</button>`:(chefs2.length>1?`<button class="b s" onclick="elegirChefDia()">💬 WA Chef</button>`:"");
-  html+=`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="b" onclick="genPDFDia()">📄 PDF</button><button class="b s" onclick="genImgDia()">📷 Imagen</button>${chefWA}</div>`;
+  const chefWA=chefs2.length===1?`<button class="b s" onclick="waOrdenDiaChef('${chefs2[0].tel}','${fecha}')">💬 WA Chef</button>`:(chefs2.length>1?`<button class="b s" onclick="elegirChefDia('${fecha}')">💬 WA Chef</button>`:"");
+  html+=`<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="b" onclick="genPDFDia('${fecha}')">📄 PDF</button><button class="b s" onclick="genImgDia('${fecha}')">📷 Imagen</button>${chefWA}</div>`;
   sh(html);
 }
 
@@ -750,10 +824,13 @@ function mkCanvas(w,h){const c=document.getElementById("exportCanvas");c.width=w
 function dlCanvas(c,name){const a=document.createElement("a");a.download=name+".png";a.href=c.toDataURL("image/png");a.click();}
 function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
 
-function genImgDia(){
-  const hoy=db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
-  if(!hoy.length)return;
+function genImgDia(fecha){
+  if(!fecha)fecha=resumenFecha||today();
+  resumenFecha=fecha;
+  const hoy=db.ordenes.filter(o=>o.fecha===fecha&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
+  if(!hoy.length){toast("Sin órdenes en esta fecha");return;}
   const pm={};hoy.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]=0;pm[it.platoNombre]+=it.cantidad;});});
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const W=680,pad=24,rowH=46;
   const totalRows=hoy.reduce((s,o)=>s+(o.items||[1]).length,0);
   const H=90+30+totalRows*rowH+30+Object.keys(pm).length*40+50;
@@ -761,9 +838,9 @@ function genImgDia(){
   ctx.fillStyle="#fdf8f3";ctx.fillRect(0,0,W,H);
   ctx.fillStyle="#c0713a";ctx.fillRect(0,0,W,90);
   ctx.fillStyle="#fff";ctx.textAlign="center";
-  ctx.font="bold 20px system-ui";ctx.fillText("EL BUEN GUSTO — ORDEN DEL DÍA",W/2,32);
+  ctx.font="bold 20px system-ui";ctx.fillText(brand.nombre.toUpperCase()+" — ORDEN DEL DÍA",W/2,32);
   ctx.font="14px system-ui";ctx.fillStyle="rgba(255,255,255,0.8)";
-  ctx.fillText(new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),W/2,52);
+  ctx.fillText(new Date(fecha+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}),W/2,52);
   const tv=hoy.reduce((s,o)=>s+(o.totalCant||o.cantidad||0),0);
   ctx.font="bold 13px system-ui";ctx.fillText(hoy.length+" órdenes · "+tv+" viandas",W/2,70);
   let y=100;
@@ -790,32 +867,36 @@ function genImgDia(){
   dlCanvas(c,"orden-chef-"+today());closeSh();toast("Imagen generada");
 }
 
-function genPDFDia(){
-  const hoy=db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
-  if(!hoy.length){alert("Sin órdenes activas hoy.");return;}
+function genPDFDia(fecha){
+  if(!fecha)fecha=resumenFecha||today();
+  resumenFecha=fecha;
+  const hoy=db.ordenes.filter(o=>o.fecha===fecha&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
+  if(!hoy.length){alert("Sin órdenes activas en esta fecha.");return;}
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
   const W=210,mg=15;let y=mg;
   doc.setFillColor(192,113,58);doc.rect(0,0,W,34,"F");
   doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont("helvetica","bold");
-  doc.text("EL BUEN GUSTO — ORDEN DEL DÍA",mg,13);
+  doc.text(brand.nombre.toUpperCase()+" — ORDEN DEL DÍA",mg,13);
   doc.setFontSize(9);doc.setFont("helvetica","normal");
-  const fd2=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const fd2=new Date(fecha+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   doc.text(fd2.charAt(0).toUpperCase()+fd2.slice(1),mg,22);
   const tv=hoy.reduce((s,o)=>s+(o.totalCant||o.cantidad||0),0);
   doc.setFont("helvetica","bold");doc.text(hoy.length+" órdenes · "+tv+" viandas",W-mg,22,{align:"right"});y=44;
   doc.setFontSize(8);doc.setFont("helvetica","bold");doc.setTextColor(100,80,60);
-  doc.text("CLIENTE",mg,y);doc.text("PLATOS",mg+52,y);doc.text("ENTREGA",mg+122,y);doc.text("TOTAL",W-mg,y,{align:"right"});
+  doc.text("CLIENTE",mg,y);doc.text("DIRECCIÓN",mg+48,y);doc.text("PLATOS",mg+95,y);doc.text("ENTREGA",mg+145,y);doc.text("TOTAL",W-mg,y,{align:"right"});
   y+=3;doc.setDrawColor(192,113,58);doc.setLineWidth(0.5);doc.line(mg,y,W-mg,y);y+=5;
   hoy.forEach((o,i)=>{
     if(y>265){doc.addPage();y=20;}
     const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
-    const rh=Math.max(12,items.length*6+6);
+    const rh=Math.max(14,items.length*5.5+8);
     if(i%2===0){doc.setFillColor(249,244,239);doc.rect(mg-2,y-4,W-mg*2+4,rh,"F");}
-    doc.setTextColor(30,26,22);doc.setFontSize(10);doc.setFont("helvetica","bold");doc.text(o.clienteNombre.substring(0,22),mg,y+2);
-    doc.setFont("helvetica","normal");doc.setFontSize(9);items.forEach((it,ii)=>doc.text(it.platoNombre.substring(0,28)+" x"+it.cantidad,mg+52,y+2+ii*5.5));
-    doc.setTextColor(21,101,192);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(o.entrega==="retiro"?"Retira":"Mensajero",mg+122,y+2);
-    if(o.notas){doc.setTextColor(160,96,0);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(o.notas.substring(0,20),mg+122,y+7);}
-    doc.setTextColor(47,122,74);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(money(o.totalPrecio||o.precio*o.cantidad||0),W-mg,y+2,{align:"right"});
+    doc.setTextColor(30,26,22);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text(o.clienteNombre.substring(0,20),mg,y+2);
+    doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(100,80,60);doc.text((o.clienteDir||"").substring(0,28),mg+48,y+2);
+    doc.setFontSize(8);doc.setTextColor(30,26,22);items.forEach((it,ii)=>{const qty=it.porPeso?(it.pesoKg||it.cantidad):it.cantidad;const qtxt=it.porPeso?qty+" kg":qty;doc.text(it.platoNombre.substring(0,26)+" x"+qtxt,mg+95,y+2+ii*5);});
+    doc.setTextColor(21,101,192);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(o.entrega==="retiro"?"Retira":"Mensajero",mg+145,y+2);
+    if(o.notas){doc.setTextColor(160,96,0);doc.setFont("helvetica","normal");doc.setFontSize(7);doc.text(o.notas.substring(0,18),mg+145,y+7);}
+    doc.setTextColor(47,122,74);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text(money(o.totalPrecio||o.precio*o.cantidad||0),W-mg,y+2,{align:"right"});
     y+=rh;
   });
   y+=6;doc.setDrawColor(200,180,160);doc.setLineWidth(0.3);doc.line(mg,y,W-mg,y);y+=8;
@@ -823,17 +904,19 @@ function genPDFDia(){
   const pm={};hoy.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]=0;pm[it.platoNombre]+=it.cantidad;});});
   Object.keys(pm).sort((a,b)=>pm[b]-pm[a]).forEach(k=>{doc.setFillColor(227,240,233);doc.roundedRect(mg,y-4,W-mg*2,12,2,2,"F");doc.setTextColor(27,94,32);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(k,mg+4,y+4);doc.text("x"+pm[k]+" unidades",W-mg-4,y+4,{align:"right"});y+=15;});
   y+=4;doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
-  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("El Buen Gusto · "+new Date().toLocaleString("es-AR"),W/2,y,{align:"center"});
+  const brandf2=db.cfg?.brand||{nombre:"El Buen Gusto"};
+  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(brandf2.nombre+" · "+new Date().toLocaleString("es-AR"),W/2,y,{align:"center"});
   doc.save("orden-chef-"+today()+".pdf");closeSh();toast("PDF generado");
 }
 
 function genPDFOrden(id){
   const o=db.ordenes.find(o=>o.id===id);if(!o)return;
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad,precio:o.precio}];
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a5"});
   const W=148,mg=14;let y=mg;
   doc.setFillColor(192,113,58);doc.rect(0,0,W,30,"F");
-  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("ORDEN DE VIANDA — EL BUEN GUSTO",W/2,11,{align:"center"});
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont("helvetica","bold");doc.text("ORDEN DE VIANDA — "+brand.nombre.toUpperCase(),W/2,11,{align:"center"});
   doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text(fd(o.fecha),W/2,19,{align:"center"});doc.text("Nro: "+(o.nro||o.id.toUpperCase()),W/2,26,{align:"center"});y=38;
   doc.setTextColor(100,80,60);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text("CLIENTE",mg,y);y+=4;
   doc.setDrawColor(200,180,160);doc.setLineWidth(0.3);doc.line(mg,y,W-mg,y);y+=5;
@@ -843,18 +926,20 @@ function genPDFOrden(id){
   doc.setFillColor(227,242,253);doc.roundedRect(mg,y,W-mg*2,9,2,2,"F");doc.setTextColor(21,101,192);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("Entrega: "+(o.entrega==="retiro"?"Retira el cliente":"Mensajero"),mg+3,y+6);y+=14;
   doc.setTextColor(100,80,60);doc.setFontSize(8);doc.setFont("helvetica","bold");doc.text("PEDIDO",mg,y);y+=4;
   doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=5;
-  items.forEach(it=>{doc.setFillColor(227,240,233);doc.roundedRect(mg,y-2,W-mg*2,12,2,2,"F");doc.setTextColor(30,26,22);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(it.platoNombre.substring(0,30),mg+3,y+5);doc.setFontSize(13);doc.setTextColor(47,122,74);doc.text("x"+it.cantidad,W-mg-3,y+5,{align:"right"});y+=15;});
+  items.forEach(it=>{const qty=it.porPeso?(it.pesoKg||it.cantidad):it.cantidad;const qtxt=it.porPeso?qty+" kg":qty;doc.setFillColor(227,240,233);doc.roundedRect(mg,y-2,W-mg*2,12,2,2,"F");doc.setTextColor(30,26,22);doc.setFontSize(11);doc.setFont("helvetica","bold");doc.text(it.platoNombre.substring(0,30),mg+3,y+5);doc.setFontSize(13);doc.setTextColor(47,122,74);doc.text("x"+qtxt,W-mg-3,y+5,{align:"right"});y+=15;});
   if(o.notas){doc.setFillColor(254,243,208);doc.roundedRect(mg,y-2,W-mg*2,11,2,2,"F");doc.setTextColor(160,96,0);doc.setFontSize(9);doc.setFont("helvetica","bold");doc.text("NOTA: ",mg+3,y+4);doc.setFont("helvetica","normal");doc.text(o.notas.substring(0,40),mg+16,y+4);y+=15;}
   if(o.descMonto>0){y+=2;doc.setTextColor(100,80,60);doc.setFontSize(9);doc.text("Subtotal: "+money(o.subtotal||0)+" · Descuento: -"+money(o.descMonto),mg,y);y+=6;}
   y+=2;doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
   doc.setFontSize(11);doc.setFont("helvetica","bold");doc.setTextColor(100,80,60);doc.text("Total:",mg,y);doc.setTextColor(47,122,74);doc.setFontSize(14);doc.text(money(o.totalPrecio||o.precio*o.cantidad||0),W-mg,y,{align:"right"});y+=12;
   doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
-  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("Roti SM",W/2,y,{align:"center"});
+  const brandf3=db.cfg?.brand||{nombre:"El Buen Gusto"};
+  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(brandf3.nombre,W/2,y,{align:"center"});
   doc.save("orden-chef-"+o.clienteNombre.replace(/\s+/g,"-").toLowerCase()+".pdf");toast("PDF generado");
 }
 
 function genImgOrden(id){
   const o=db.ordenes.find(o=>o.id===id);if(!o)return;
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad,precio:o.precio}];
   const W=520,pad=24;
   const H=90+60+(o.clienteDir?22:0)+40+items.length*50+(o.notas?46:0)+(o.descMonto>0?30:0)+80+46;
@@ -863,7 +948,7 @@ function genImgOrden(id){
   ctx.fillStyle="#c0713a";rr(ctx,0,0,W,90,0);ctx.fill();
   ctx.fillStyle="#fff";ctx.textAlign="center";
   ctx.font="bold 17px system-ui";ctx.fillText("ORDEN DE VIANDA",W/2,28);
-  ctx.font="bold 13px system-ui";ctx.fillText("EL BUEN GUSTO",W/2,46);
+  ctx.font="bold 13px system-ui";ctx.fillText(brand.nombre.toUpperCase(),W/2,46);
   ctx.font="11px system-ui";ctx.fillStyle="rgba(255,255,255,0.8)";ctx.fillText(fd(o.fecha),W/2,62);ctx.fillText("Nro: "+(o.nro||o.id.toUpperCase()),W/2,78);
   let y=106;
   ctx.fillStyle="#8a7e72";ctx.font="bold 11px system-ui";ctx.textAlign="left";ctx.fillText("DATOS DEL CLIENTE",pad,y);y+=6;
@@ -879,7 +964,8 @@ function genImgOrden(id){
   if(o.descMonto>0){ctx.fillStyle="#8a7e72";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("Subtotal: "+money(o.subtotal||0)+" · Descuento: -"+money(o.descMonto),pad,y+14);y+=30;}
   ctx.strokeStyle="#e8ddd2";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();y+=14;
   ctx.fillStyle="#e3f0e9";rr(ctx,pad,y,W-pad*2,44,8);ctx.fill();ctx.fillStyle="#8a7e72";ctx.font="bold 13px system-ui";ctx.textAlign="left";ctx.fillText("TOTAL:",pad+12,y+28);ctx.fillStyle="#1b5e20";ctx.font="bold 22px system-ui";ctx.textAlign="right";ctx.fillText(money(o.totalPrecio||o.precio*o.cantidad||0),W-pad-10,y+30);y+=58;
-  ctx.fillStyle="#8a7e72";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText("Roti SM",W/2,y);
+  const brandf4=db.cfg?.brand||{nombre:"El Buen Gusto"};
+  ctx.fillStyle="#8a7e72";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText(brandf4.nombre,W/2,y);
   dlCanvas(c,"comanda-chef-"+o.clienteNombre.replace(/\s+/g,"-").toLowerCase());toast("Imagen generada");
 }
 
@@ -888,17 +974,18 @@ function abrirComp(id){
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
   let html=`<div class="hdl"></div><div class="row"><b>Comprobante para cliente</b><button class="bk" onclick="this.closest('.sh').remove()">Cerrar</button></div>`;
   html+=`<div class="info" style="background:#f5f0ff;color:#6030b0">Nro: ${esc(o.nro||o.id.toUpperCase())}</div>`;
-  html+=`<div style="font-size:13px;color:var(--mu);line-height:1.9"><b style="color:var(--tx)">Cliente:</b> ${esc(o.clienteNombre)}<br>${o.clienteTel?`<b style="color:var(--tx)">Tel:</b> ${esc(o.clienteTel)}<br>`:""}${o.clienteDir?`<b style="color:var(--tx)">Dir:</b> ${esc(o.clienteDir)}<br>`:""}<b style="color:var(--tx)">Pedido:</b><br>${items.map(it=>`&nbsp;&nbsp;• ${esc(it.platoNombre)} x${it.cantidad}`).join("<br>")}<br><b style="color:var(--tx)">Entrega:</b> ${o.entrega==="retiro"?"Retira el cliente":"Mensajero"}<br>${o.notas?`<b style="color:var(--tx)">Nota:</b> ${esc(o.notas)}<br>`:""}${o.descMonto>0?`<b style="color:var(--tx)">Descuento:</b> -${money(o.descMonto)}<br>`:""}Total: <span style="color:var(--gr);font-size:16px;font-weight:700">${money(o.totalPrecio||o.precio*o.cantidad||0)}</span><br><b style="color:var(--tx)">Fecha:</b> ${fd(o.fecha)}</div>`;
+  html+=`<div style="font-size:13px;color:var(--mu);line-height:1.9"><b style="color:var(--tx)">Cliente:</b> ${esc(o.clienteNombre)}<br>${o.clienteTel?`<b style="color:var(--tx)">Tel:</b> ${esc(o.clienteTel)}<br>`:""}${o.clienteDir?`<b style="color:var(--tx)">Dir:</b> ${esc(o.clienteDir)}<br>`:""}<b style="color:var(--tx)">Pedido:</b><br>${items.map(it=>{const pinfo=it.porPeso?` x${it.pesoKg||it.cantidad} kg`:` x${it.cantidad}`;return `&nbsp;&nbsp;• ${esc(it.platoNombre)}${pinfo}`;}).join("<br>")}<br><b style="color:var(--tx)">Entrega:</b> ${o.entrega==="retiro"?"Retira el cliente":"Mensajero"}<br>${o.notas?`<b style="color:var(--tx)">Nota:</b> ${esc(o.notas)}<br>`:""}${o.descMonto>0?`<b style="color:var(--tx)">Descuento:</b> -${money(o.descMonto)}<br>`:""}Total: <span style="color:var(--gr);font-size:16px;font-weight:700">${money(o.totalPrecio||o.precio*o.cantidad||0)}</span><br><b style="color:var(--tx)">Fecha:</b> ${fd(o.fecha)}</div>`;
   html+=`<div style="display:flex;gap:8px;margin-top:12px"><button class="b" onclick="genCompPDF()">📄 PDF</button><button class="b s" onclick="genCompImg()">📷 Imagen</button></div>`;
   sh(html);
 }
 function genCompPDF(){
   const o=db.ordenes.find(o=>o.id===compId);if(!o)return;
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
   const doc=new window.jspdf.jsPDF({unit:"mm",format:"a5"});
   const W=148,mg=14;let y=mg;
   doc.setFillColor(96,48,176);doc.rect(0,0,W,30,"F");
-  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont("helvetica","bold");doc.text("EL BUEN GUSTO",W/2,11,{align:"center"});
+  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont("helvetica","bold");doc.text(brand.nombre.toUpperCase(),W/2,11,{align:"center"});
   doc.setFontSize(9);doc.setFont("helvetica","normal");doc.text("COMPROBANTE DE PEDIDO",W/2,19,{align:"center"});doc.text("Nro: "+(o.nro||o.id.toUpperCase()),W/2,26,{align:"center"});y=38;
   doc.setTextColor(100,80,60);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text(fd(o.fecha),W/2,y,{align:"center"});y+=8;
   doc.setFont("helvetica","bold");doc.text("DATOS DEL CLIENTE",mg,y);y+=4;
@@ -916,11 +1003,13 @@ function genCompPDF(){
   y+=4;doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=7;
   doc.setFillColor(227,240,233);doc.roundedRect(mg,y-4,W-mg*2,14,3,3,"F");doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(100,80,60);doc.text("TOTAL A PAGAR:",mg+4,y+4);doc.setFontSize(15);doc.setTextColor(27,94,32);doc.text(money(o.totalPrecio||o.precio*o.cantidad||0),W-mg-4,y+5,{align:"right"});y+=18;
   doc.setDrawColor(200,180,160);doc.line(mg,y,W-mg,y);y+=6;
-  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("¡Gracias por elegirnos! — El Buen Gusto",W/2,y,{align:"center"});
+  const brandf5=db.cfg?.brand||{nombre:"El Buen Gusto"};
+  doc.setTextColor(138,126,114);doc.setFontSize(8);doc.setFont("helvetica","normal");doc.text("¡Gracias por elegirnos! — "+brandf5.nombre,W/2,y,{align:"center"});
   doc.save("comprobante-"+o.clienteNombre.replace(/\s+/g,"-").toLowerCase()+".pdf");closeSh();toast("Comprobante PDF generado");
 }
 function genCompImg(){
   const o=db.ordenes.find(o=>o.id===compId);if(!o)return;
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto"};
   const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad,precio:o.precio}];
   const W=540,pad=28;
   const H=90+80+(o.clienteTel?22:0)+(o.clienteDir?22:0)+40+items.length*52+(o.notas?46:0)+(o.descMonto>0?28:0)+84+46;
@@ -928,7 +1017,7 @@ function genCompImg(){
   ctx.fillStyle="#f5f0ff";ctx.fillRect(0,0,W,H);
   ctx.fillStyle="#6030b0";rr(ctx,0,0,W,90,0);ctx.fill();
   ctx.fillStyle="#fff";ctx.textAlign="center";
-  ctx.font="bold 22px system-ui";ctx.fillText("EL BUEN GUSTO",W/2,32);
+  ctx.font="bold 22px system-ui";ctx.fillText(brand.nombre.toUpperCase(),W/2,32);
   ctx.font="15px system-ui";ctx.fillText("COMPROBANTE DE PEDIDO",W/2,54);
   ctx.font="12px system-ui";ctx.fillStyle="rgba(255,255,255,0.8)";ctx.fillText("Nro: "+(o.nro||o.id.toUpperCase()),W/2,72);
   let y=106;
@@ -1185,13 +1274,15 @@ function renderDat(){
   $("#app").innerHTML=html;
 }
 
-function waOrdenDiaChef(tel){
-  const hoy=db.ordenes.filter(o=>o.fecha===today()&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
-  if(!hoy.length){toast("Sin órdenes activas hoy");return;}
-  const brand=db.cfg?.brand||{nombre:"Roti SM",logo:""};
+function waOrdenDiaChef(tel,fecha){
+  if(!fecha)fecha=resumenFecha||today();
+  resumenFecha=fecha;
+  const hoy=db.ordenes.filter(o=>o.fecha===fecha&&o.estado!=="cancelado").sort((a,b)=>a.clienteNombre.localeCompare(b.clienteNombre));
+  if(!hoy.length){toast("Sin órdenes activas en esta fecha");return;}
+  const brand=db.cfg?.brand||{nombre:"El Buen Gusto",logo:""};
   const nl="\n";
   let msg="*ORDEN DEL DÍA - "+brand.nombre.toUpperCase()+"*"+nl;
-  msg+=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})+nl+nl;
+  msg+=new Date(fecha+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})+nl+nl;
   hoy.forEach(o=>{
     const items=o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}];
     msg+="*"+o.clienteNombre+"*"+nl;
@@ -1201,7 +1292,6 @@ function waOrdenDiaChef(tel){
     if(o.notas)msg+=" | "+o.notas;
     msg+=nl+nl;
   });
-  // Resumen
   const pm={};hoy.forEach(o=>{(o.items||[{platoNombre:o.platoNombre,cantidad:o.cantidad}]).forEach(it=>{if(!pm[it.platoNombre])pm[it.platoNombre]=0;pm[it.platoNombre]+=it.cantidad;});});
   msg+="*RESUMEN:*"+nl;
   Object.keys(pm).forEach(k=>{msg+="  "+k+": x"+pm[k]+nl;});
@@ -1209,9 +1299,11 @@ function waOrdenDiaChef(tel){
   window.open("https://wa.me/"+(telClean?telClean:"")+"?text="+encodeURIComponent(msg),"_blank");
   closeSh();
 }
-function elegirChefDia(){
+function elegirChefDia(fecha){
+  if(!fecha)fecha=resumenFecha||today();
+  resumenFecha=fecha;
   const chefs=db.empleados?db.empleados.filter(e=>e.rol==="chef"):[];
-  const opts=chefs.map(c=>`<button class="b s" style="margin-bottom:6px" onclick="closeSh();waOrdenDiaChef('${c.tel}')">👨‍🍳 ${esc(c.nombre)}</button>`).join("");
+  const opts=chefs.map(c=>`<button class="b s" style="margin-bottom:6px" onclick="closeSh();waOrdenDiaChef('${c.tel}','${fecha}')">👨‍🍳 ${esc(c.nombre)}</button>`).join("");
   sh(`<div class="hdl"></div><b>¿A qué chef enviás?</b><div style="margin-top:12px">${opts}</div>`);
 }
 function backup(){
